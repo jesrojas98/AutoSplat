@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Link } from 'react-router-dom'
+import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/store/theme.store'
+import { useAuthStore } from '@/store/auth.store'
 
 const links = [
   { to: '/', label: 'INICIO' },
@@ -16,14 +17,11 @@ const MOCK_NOTIFICATIONS = [
   { id: 4, icon: 'favorite', text: 'Alguien guardó tu Porsche 911 GT3', time: 'ayer', unread: false },
 ]
 
-const MOCK_USER = {
-  name: 'Jesús Rojas',
-  email: 'jesusalerojasguti@gmail.com',
-  role: 'Vendedor',
-}
 
 export function Navbar() {
   const { theme, toggle } = useThemeStore()
+  const { user, logout } = useAuthStore()
+  const navigate = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
 
@@ -150,71 +148,76 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Usuario */}
-          <div ref={userRef} className="relative">
-            <button
-              onClick={() => { setUserOpen((v) => !v); setNotifOpen(false) }}
-              className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full hover:bg-[var(--color-surface-container-high)] transition-all"
-            >
-              <div className="w-8 h-8 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center">
-                <span className="material-symbols-outlined text-[var(--color-on-primary-container)] text-base">person</span>
-              </div>
-              <span className="hidden sm:block label-caps text-[var(--color-on-surface)] text-[10px] max-w-24 truncate">
-                {MOCK_USER.name.split(' ')[0].toUpperCase()}
-              </span>
-              <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-base">
-                {userOpen ? 'expand_less' : 'expand_more'}
-              </span>
-            </button>
+          {/* Usuario autenticado o botones de acceso */}
+          {user ? (
+            <div ref={userRef} className="relative">
+              <button
+                onClick={() => { setUserOpen((v) => !v); setNotifOpen(false) }}
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full hover:bg-[var(--color-surface-container-high)] transition-all"
+              >
+                <div className="w-8 h-8 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[var(--color-on-primary-container)] text-base">person</span>
+                </div>
+                <span className="hidden sm:block label-caps text-[var(--color-on-surface)] text-[10px] max-w-24 truncate">
+                  {user.name.split(' ')[0].toUpperCase()}
+                </span>
+                <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-base">
+                  {userOpen ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
 
-            {userOpen && (
-              <div className="absolute right-0 top-full mt-2 w-60 dropdown-card rounded-xl overflow-hidden shadow-xl">
-                {/* Info usuario */}
-                <div className="px-4 py-4 border-b border-[var(--color-outline-variant)]/20">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-[var(--color-on-primary-container)] text-base">person</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p style={{ fontWeight: 600, fontSize: 14 }} className="text-[var(--color-on-surface)] truncate">
-                        {MOCK_USER.name}
-                      </p>
-                      <p className="label-caps text-[var(--color-primary)] text-[10px]">{MOCK_USER.role.toUpperCase()}</p>
+              {userOpen && (
+                <div className="absolute right-0 top-full mt-2 w-60 dropdown-card rounded-xl overflow-hidden shadow-xl">
+                  <div className="px-4 py-4 border-b border-[var(--color-outline-variant)]/20">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[var(--color-on-primary-container)] text-base">person</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p style={{ fontWeight: 600, fontSize: 14 }} className="text-[var(--color-on-surface)] truncate">{user.name}</p>
+                        <p className="label-caps text-[var(--color-primary)] text-[10px]">{user.role.toUpperCase()}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Opciones */}
-                <div className="py-1">
-                  {[
-                    { to: '/dashboard', icon: 'dashboard', label: 'Mi cuenta' },
-                    { to: '/dashboard?tab=mensajes', icon: 'chat_bubble', label: 'Mensajes' },
-                    { to: '/publish', icon: 'add_circle', label: 'Publicar vehículo' },
-                    { to: '/dashboard?tab=favoritos', icon: 'favorite', label: 'Favoritos' },
-                    { to: '/dashboard?tab=perfil', icon: 'manage_accounts', label: 'Mi perfil' },
-                  ].map(({ to, icon, label }) => (
-                    <Link
-                      key={label}
-                      to={to}
-                      onClick={() => setUserOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-surface-container-high)] transition-colors"
+                  <div className="py-1">
+                    {[
+                      { to: '/dashboard', icon: 'dashboard', label: 'Mi cuenta' },
+                      { to: '/dashboard?tab=mensajes', icon: 'chat_bubble', label: 'Mensajes' },
+                      { to: '/publish', icon: 'add_circle', label: 'Publicar vehículo' },
+                      { to: '/dashboard?tab=favoritos', icon: 'favorite', label: 'Favoritos' },
+                      { to: '/dashboard?tab=perfil', icon: 'manage_accounts', label: 'Mi perfil' },
+                    ].map(({ to, icon, label }) => (
+                      <Link key={label} to={to} onClick={() => setUserOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-surface-container-high)] transition-colors">
+                        <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-base">{icon}</span>
+                        <span className="text-[var(--color-on-surface)] text-sm">{label}</span>
+                      </Link>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-[var(--color-outline-variant)]/20 py-1">
+                    <button
+                      onClick={() => { logout(); setUserOpen(false); navigate('/') }}
+                      className="flex items-center gap-3 px-4 py-2.5 w-full hover:bg-[var(--color-secondary-container)]/20 transition-colors"
                     >
-                      <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-base">{icon}</span>
-                      <span className="text-[var(--color-on-surface)] text-sm">{label}</span>
-                    </Link>
-                  ))}
+                      <span className="material-symbols-outlined text-[var(--color-secondary)] text-base">logout</span>
+                      <span className="text-[var(--color-secondary)] text-sm">Cerrar sesión</span>
+                    </button>
+                  </div>
                 </div>
-
-                {/* Cerrar sesión */}
-                <div className="border-t border-[var(--color-outline-variant)]/20 py-1">
-                  <button className="flex items-center gap-3 px-4 py-2.5 w-full hover:bg-[var(--color-secondary-container)]/20 transition-colors">
-                    <span className="material-symbols-outlined text-[var(--color-secondary)] text-base">logout</span>
-                    <span className="text-[var(--color-secondary)] text-sm">Cerrar sesión</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link to="/login" className="label-caps text-[10px] text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)] px-3 py-2 transition-colors">
+                INGRESAR
+              </Link>
+              <Link to="/register" className="label-caps text-[10px] px-4 py-2 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] rounded-full hover:bg-[var(--color-primary)] transition-all">
+                REGISTRARSE
+              </Link>
+            </div>
+          )}
 
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/store/auth.store'
 
 type Role = 'buyer' | 'seller'
 
@@ -9,16 +10,24 @@ export function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const { register, loading } = useAuthStore()
+  const navigate = useNavigate()
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // TODO: conectar con API
+    setError('')
+    try {
+      await register(name, email, password)
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err.response?.data?.message ?? 'Error al crear la cuenta')
+    }
   }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-[var(--spacing-gutter)] py-16">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-10">
           <Link to="/" style={{ fontFamily: 'var(--font-headline)', fontSize: 28, fontWeight: 700 }} className="text-[var(--color-on-surface)]">
             AutoSplat
@@ -31,7 +40,13 @@ export function Register() {
             Crear cuenta
           </h1>
 
-          {/* Selector de rol */}
+          {error && (
+            <div className="mb-4 px-4 py-3 rounded-lg bg-[var(--color-secondary)]/10 border border-[var(--color-secondary)]/30 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[var(--color-secondary)] text-base">error</span>
+              <p className="text-[var(--color-secondary)] text-sm">{error}</p>
+            </div>
+          )}
+
           <div className="flex gap-3 mb-6">
             {([
               { value: 'buyer', label: 'Comprador', icon: 'person_search' },
@@ -54,73 +69,53 @@ export function Register() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {/* Nombre */}
             <div>
               <label className="label-caps text-[var(--color-on-surface-variant)] block mb-2">NOMBRE COMPLETO</label>
               <div className="flex items-center bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-4 py-3 focus-within:border-[var(--color-primary)]/60 transition-colors">
                 <span className="material-symbols-outlined text-[var(--color-outline)] mr-3 text-xl">person</span>
-                <input
-                  type="text"
-                  required
-                  placeholder="Tu nombre"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]"
-                />
+                <input type="text" required placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]" />
               </div>
             </div>
 
-            {/* Email */}
             <div>
               <label className="label-caps text-[var(--color-on-surface-variant)] block mb-2">CORREO ELECTRÓNICO</label>
               <div className="flex items-center bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-4 py-3 focus-within:border-[var(--color-primary)]/60 transition-colors">
                 <span className="material-symbols-outlined text-[var(--color-outline)] mr-3 text-xl">mail</span>
-                <input
-                  type="email"
-                  required
-                  placeholder="tu@correo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]"
-                />
+                <input type="email" required placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]" />
               </div>
             </div>
 
-            {/* Contraseña */}
             <div>
               <label className="label-caps text-[var(--color-on-surface-variant)] block mb-2">CONTRASEÑA</label>
               <div className="flex items-center bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-4 py-3 focus-within:border-[var(--color-primary)]/60 transition-colors">
                 <span className="material-symbols-outlined text-[var(--color-outline)] mr-3 text-xl">lock</span>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  minLength={8}
-                  placeholder="Mínimo 8 caracteres"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]"
-                />
+                <input type={showPassword ? 'text' : 'password'} required minLength={8} placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]" />
                 <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-[var(--color-outline)] hover:text-[var(--color-on-surface)] transition-colors ml-2">
-                  <span className="material-symbols-outlined text-xl">
-                    {showPassword ? 'visibility_off' : 'visibility'}
-                  </span>
+                  <span className="material-symbols-outlined text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
                 </button>
               </div>
             </div>
 
             <button
               type="submit"
-              className="glow-primary w-full py-4 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] active:scale-[0.98] transition-all mt-2"
+              disabled={loading}
+              className="glow-primary w-full py-4 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              CREAR CUENTA
+              {loading ? (
+                <>
+                  <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                  CREANDO CUENTA...
+                </>
+              ) : 'CREAR CUENTA'}
             </button>
           </form>
 
           <p className="text-center text-[var(--color-on-surface-variant)] text-sm mt-6">
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="text-[var(--color-primary)] hover:underline font-medium">
-              Inicia sesión
-            </Link>
+            <Link to="/login" className="text-[var(--color-primary)] hover:underline font-medium">Inicia sesión</Link>
           </p>
         </div>
       </div>
