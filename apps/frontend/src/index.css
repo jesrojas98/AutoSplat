@@ -87,6 +87,12 @@
     border: 1px solid rgba(67, 70, 85, 0.5);
   }
 
+  .dropdown-card {
+    background: rgba(22, 24, 32, 0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(67, 70, 85, 0.6);
+  }
+
   .glass-panel {
     background: rgba(29, 31, 39, 0.7);
     backdrop-filter: blur(12px);
@@ -133,6 +139,73 @@
   }
 }
 
+/* ── Modo claro — tokens que sobreescriben los dark ───────── */
+html.light {
+  --color-background:                #ffffff;
+  --color-surface:                   #ffffff;
+  --color-surface-dim:               #f1f5f9;
+  --color-surface-bright:            #ffffff;
+  --color-surface-container-lowest:  #ffffff;
+  --color-surface-container-low:     #f1f5f9;
+  --color-surface-container:         #f8fafc;
+  --color-surface-container-high:    #e2e8f0;
+  --color-surface-container-highest: #cbd5e1;
+  --color-surface-variant:           #f1f3f9;
+
+  --color-on-surface:         #11131b;
+  --color-on-surface-variant: #434655;
+  --color-on-background:      #11131b;
+
+  --color-outline:         #8d90a0;
+  --color-outline-variant: #d1d4e2;
+
+  --color-primary:              #2563eb;
+  --color-primary-container:    #dbe1ff;
+  --color-on-primary:           #ffffff;
+  --color-on-primary-container: #00174b;
+  --color-primary-fixed:        #dbe1ff;
+  --color-primary-fixed-dim:    #2563eb;
+  --color-surface-tint:         #2563eb;
+
+  --color-secondary:              #c0392b;
+  --color-secondary-container:    #fce4e1;
+  --color-on-secondary:           #ffffff;
+  --color-on-secondary-container: #68000a;
+}
+
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(209, 212, 226, 0.6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+html.light .dropdown-card {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(209, 212, 226, 0.7);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+html.light .glass-panel {
+  background: rgba(248, 250, 252, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(209, 212, 226, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+html.light .glow-primary:hover {
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.25);
+}
+
+html.light .active-glow {
+  box-shadow: 0 0 15px rgba(37, 99, 235, 0.2);
+}
+
+html.light .text-glow {
+  text-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+}
+
 /* ── Material Symbols config ───────────────────────────────── */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
@@ -153,4 +226,5 @@ body {
   color: var(--color-on-surface);
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

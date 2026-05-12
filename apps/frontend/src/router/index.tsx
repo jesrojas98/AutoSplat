@@ -6,6 +6,7 @@ import { VehicleDetail } from '@/pages/VehicleDetail'
 import { Login } from '@/pages/Login'
 import { Register } from '@/pages/Register'
 import { PublishVehicle } from '@/pages/PublishVehicle'
+import { Dashboard } from '@/pages/Dashboard'
 import { NotFound } from '@/pages/NotFound'
 
 export function AppRouter() {
@@ -18,6 +19,7 @@ export function AppRouter() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/publish" element={<PublishVehicle />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
