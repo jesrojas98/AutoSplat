@@ -1,8 +1,8 @@
 const footerLinks = [
-  'Privacy Policy',
-  'Terms of Service',
-  'API Documentation',
-  'Contact Support',
+  'Política de Privacidad',
+  'Términos de Servicio',
+  'Documentación API',
+  'Soporte',
 ]
 
 export function Footer() {
@@ -17,7 +17,7 @@ export function Footer() {
             AutoSplat
           </span>
           <p className="text-[var(--color-on-surface-variant)] text-sm mt-2 opacity-60">
-            © 2024 AutoSplat Technologies. Precision Engineered 3D Commerce.
+            © 2024 AutoSplat Technologies. Compraventa de vehículos con tecnología 3D.
           </p>
         </div>
 

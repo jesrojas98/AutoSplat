@@ -21,7 +21,7 @@ export function HeroSection() {
         style={{ background: 'linear-gradient(to bottom, rgba(37,99,235,0.08), var(--color-background))' }}
       />
 
-      {/* Background pattern */}
+      {/* Background dot pattern */}
       <div className="absolute inset-0 -z-20 opacity-5">
         <div
           className="w-full h-full"
@@ -34,7 +34,7 @@ export function HeroSection() {
 
       {/* Eyebrow */}
       <span className="label-caps text-[var(--color-primary)] mb-6 tracking-widest">
-        NEXT-GEN AUTOMOTIVE MARKETPLACE
+        MARKETPLACE AUTOMOTRIZ DE NUEVA GENERACIÓN
       </span>
 
       {/* Headline */}
@@ -48,7 +48,7 @@ export function HeroSection() {
           lineHeight: 1.1,
         }}
       >
-        The Future of Car Buying is{' '}
+        El futuro de la compra de autos es{' '}
         <span className="text-[var(--color-primary)] text-glow">3D.</span>
       </h1>
 
@@ -56,8 +56,8 @@ export function HeroSection() {
         className="text-[var(--color-on-surface-variant)] mb-12 max-w-2xl mx-auto"
         style={{ fontFamily: 'var(--font-body)', fontSize: 18, lineHeight: 1.6 }}
       >
-        Step inside the showroom of tomorrow. Explore vehicles with millimeter-precision
-        3D Gaussian Splatting technology.
+        Entra al showroom del mañana. Explora vehículos con tecnología de reconstrucción
+        3D de precisión milimétrica mediante Gaussian Splatting.
       </p>
 
       {/* Search bar */}
@@ -84,7 +84,7 @@ export function HeroSection() {
           onClick={handleSearch}
           className="glow-primary bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-8 py-3 rounded-lg label-caps font-bold hover:bg-[var(--color-primary)] active:scale-95 transition-all whitespace-nowrap"
         >
-          SEARCH
+          BUSCAR
         </button>
       </div>
 

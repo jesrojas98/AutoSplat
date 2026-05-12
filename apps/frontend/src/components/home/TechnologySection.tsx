@@ -5,17 +5,17 @@ export function TechnologySection() {
 
       <div className="max-w-[var(--spacing-max-width)] mx-auto flex flex-col items-center text-center">
         <span className="label-caps text-[var(--color-primary)] mb-4 tracking-widest">
-          THE TECHNOLOGY
+          LA TECNOLOGÍA
         </span>
         <h2
           className="mb-16"
           style={{ fontFamily: 'var(--font-headline)', fontSize: 40, fontWeight: 700 }}
         >
-          From 40 Photos to Millimeter Precision.
+          De 40 fotos a precisión milimétrica.
         </h2>
 
         <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
-          {/* Step 1 */}
+          {/* Paso 1 */}
           <div className="glass-card flex flex-col items-center p-8 rounded-2xl border-dashed border-[var(--color-outline-variant)]/50">
             <div className="mb-6 grid grid-cols-3 gap-2 opacity-50">
               {Array.from({ length: 9 }).map((_, i) => (
@@ -29,21 +29,21 @@ export function TechnologySection() {
               className="text-lg mb-2"
               style={{ fontFamily: 'var(--font-headline)', fontWeight: 600 }}
             >
-              Multi-Angle Capture
+              Captura Multi-Ángulo
             </h4>
             <p className="text-[var(--color-on-surface-variant)] text-sm">
-              Our engine processes 40–80 high-resolution images from every possible viewpoint.
+              Nuestro motor procesa entre 40 y 80 imágenes de alta resolución desde todos los ángulos posibles.
             </p>
           </div>
 
-          {/* Arrow */}
+          {/* Flecha */}
           <div className="hidden lg:flex justify-center text-[var(--color-primary)]">
             <span className="material-symbols-outlined" style={{ fontSize: 48 }}>
               trending_flat
             </span>
           </div>
 
-          {/* Step 2 */}
+          {/* Paso 2 */}
           <div
             className="glass-card flex flex-col items-center p-8 rounded-2xl"
             style={{ border: '2px solid rgba(180,197,255,0.3)' }}
@@ -67,8 +67,8 @@ export function TechnologySection() {
               Gaussian Splatting
             </h4>
             <p className="text-[var(--color-on-surface-variant)] text-sm">
-              Spherical harmonics and point clouds create a photorealistic 3D volume
-              that stays sharp at any angle.
+              Armónicos esféricos y nubes de puntos crean un volumen 3D fotorrealista
+              que mantiene nitidez desde cualquier ángulo.
             </p>
           </div>
         </div>

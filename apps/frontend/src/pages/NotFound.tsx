@@ -10,6 +10,9 @@ export function NotFound() {
       >
         Página no encontrada.
       </h1>
+      <p className="text-[var(--color-on-surface-variant)] mb-8 max-w-md">
+        La página que buscas no existe o fue movida.
+      </p>
       <Link
         to="/"
         className="glow-primary px-8 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all"

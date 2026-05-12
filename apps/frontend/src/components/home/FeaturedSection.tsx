@@ -66,17 +66,17 @@ export function FeaturedSection() {
               className="mb-2"
               style={{ fontFamily: 'var(--font-headline)', fontSize: 40, fontWeight: 700 }}
             >
-              Featured Scans
+              Escaneos Destacados
             </h2>
             <p className="text-[var(--color-on-surface-variant)] text-base">
-              Curated high-fidelity captures available for instant virtual inspection.
+              Capturas de alta fidelidad disponibles para inspección virtual inmediata.
             </p>
           </div>
           <Link
             to="/catalog"
             className="label-caps text-[var(--color-primary)] flex items-center gap-2 hover:gap-4 transition-all"
           >
-            VIEW ALL CATALOG
+            VER CATÁLOGO COMPLETO
             <span className="material-symbols-outlined">arrow_forward</span>
           </Link>
         </div>
