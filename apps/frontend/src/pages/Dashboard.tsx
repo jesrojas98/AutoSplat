@@ -22,6 +22,8 @@ export function Dashboard() {
   const setTab = (t: Tab) => setSearchParams({ tab: t })
 
   const { user } = useAuthStore()
+  const displayName = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? ''
+  const avatarUrl = user?.user_metadata?.avatar_url ?? null
   const [listings, setListings] = useState<Vehicle[]>([])
   const [favorites, setFavorites] = useState<any[]>([])
   const [messages, setMessages] = useState<any[]>([])
@@ -50,19 +52,19 @@ export function Dashboard() {
 
       {/* Header perfil */}
       <div className="glass-card rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-        <div className="w-16 h-16 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center shrink-0">
-          {user.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+        <div className="w-16 h-16 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center shrink-0 overflow-hidden">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
             <span className="material-symbols-outlined text-[var(--color-on-primary-container)]" style={{ fontSize: 32 }}>person</span>
           )}
         </div>
         <div className="flex-1">
-          <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 24, fontWeight: 700 }}>{user.name}</h1>
+          <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 24, fontWeight: 700 }}>{displayName}</h1>
           <p className="text-[var(--color-on-surface-variant)] text-sm">{user.email}</p>
           <div className="flex items-center gap-3 mt-2">
             <span className="label-caps text-[10px] bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-2 py-1 rounded">
-              {user.role === 'seller' ? 'VENDEDOR' : user.role === 'admin' ? 'ADMIN' : 'COMPRADOR'}
+              VENDEDOR
             </span>
           </div>
         </div>
@@ -231,9 +233,9 @@ export function Dashboard() {
           <div className="glass-card rounded-xl p-6 flex flex-col gap-5">
             <h2 style={{ fontFamily: 'var(--font-headline)', fontSize: 18, fontWeight: 600 }} className="mb-2">Información personal</h2>
             {[
-              { label: 'NOMBRE', value: user.name, icon: 'person' },
-              { label: 'CORREO', value: user.email, icon: 'mail' },
-              { label: 'ROL', value: user.role === 'seller' ? 'Vendedor' : 'Comprador', icon: 'storefront' },
+              { label: 'NOMBRE', value: displayName, icon: 'person' },
+              { label: 'CORREO', value: user.email ?? '', icon: 'mail' },
+              { label: 'ROL', value: 'Vendedor', icon: 'storefront' },
             ].map(({ label, value, icon }) => (
               <div key={label} className="flex items-center gap-4 py-3 border-b border-[var(--color-outline-variant)]/20 last:border-0">
                 <span className="material-symbols-outlined text-[var(--color-primary)] text-base">{icon}</span>

@@ -9,6 +9,8 @@ import { VehiclesModule } from './vehicles/vehicles.module'
 import { FavoritesModule } from './favorites/favorites.module'
 import { MessagesModule } from './messages/messages.module'
 import { UploadModule } from './upload/upload.module'
+import { JobsModule } from './jobs/jobs.module'
+import { NotificationsModule } from './notifications/notifications.module'
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { UploadModule } from './upload/upload.module'
     FavoritesModule,
     MessagesModule,
     UploadModule,
+    JobsModule,
+    NotificationsModule,
   ],
   providers: [
     {

@@ -6,12 +6,13 @@ import { useAuthStore } from '@/store/auth.store'
 
 export default function App() {
   const apply = useThemeStore((s) => s.apply)
-  const fetchMe = useAuthStore((s) => s.fetchMe)
+  const init = useAuthStore((s) => s.init)
 
   useEffect(() => {
     apply()
-    fetchMe()
-  }, [apply, fetchMe])
+    const unsub = init()
+    return unsub
+  }, [apply, init])
 
   return (
     <BrowserRouter>

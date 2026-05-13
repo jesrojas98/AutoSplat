@@ -1,67 +1,74 @@
 import { create } from 'zustand'
-import { api } from '@/lib/api'
-
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-  avatar_url: string | null
-}
+import { supabase } from '@/lib/supabase'
+import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthStore {
   user: User | null
-  token: string | null
+  session: Session | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
-  logout: () => void
-  fetchMe: () => Promise<void>
+  loginWithGoogle: () => Promise<void>
+  loginWithEmail: (email: string, password: string) => Promise<void>
+  registerWithEmail: (name: string, email: string, password: string, role: 'buyer' | 'seller') => Promise<void>
+  logout: () => Promise<void>
+  init: () => () => void
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
-  token: localStorage.getItem('autosplat-token'),
-  loading: false,
+  session: null,
+  loading: true,
 
-  async login(email, password) {
-    set({ loading: true })
-    try {
-      const { data } = await api.post('/auth/login', { email, password })
-      localStorage.setItem('autosplat-token', data.access_token)
-      set({ token: data.access_token, user: data.user, loading: false })
-    } catch (err) {
-      set({ loading: false })
-      throw err
-    }
+  async loginWithGoogle() {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    })
   },
 
-  async register(name, email, password) {
-    set({ loading: true })
-    try {
-      const { data } = await api.post('/auth/register', { name, email, password })
-      localStorage.setItem('autosplat-token', data.access_token)
-      set({ token: data.access_token, user: data.user, loading: false })
-    } catch (err) {
-      set({ loading: false })
-      throw err
-    }
+  async loginWithEmail(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+    set({ user: data.user, session: data.session })
   },
 
-  logout() {
-    localStorage.removeItem('autosplat-token')
-    set({ user: null, token: null })
+  async registerWithEmail(name, email, password, role) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, role } },
+    })
+    if (error) throw error
+    if (data.user) {
+      await supabase.from('users').upsert({
+        id: data.user.id,
+        email: data.user.email!,
+        name,
+        password_hash: '',
+        role,
+      })
+    }
+    set({ user: data.user, session: data.session })
   },
 
-  async fetchMe() {
-    const token = localStorage.getItem('autosplat-token')
-    if (!token) return
-    try {
-      const { data } = await api.get('/users/me')
-      set({ user: data })
-    } catch {
-      localStorage.removeItem('autosplat-token')
-      set({ user: null, token: null })
-    }
+  async logout() {
+    await supabase.auth.signOut()
+    set({ user: null, session: null })
+  },
+
+  init() {
+    supabase.auth.getSession().then(({ data }) => {
+      set({ user: data.session?.user ?? null, session: data.session, loading: false })
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      set({ user: session?.user ?? null, session, loading: false })
+    })
+
+    return () => subscription.unsubscribe()
   },
 }))
+
+// Helper para leer el rol desde el user de Supabase
+export function getUserRole(user: User | null): 'buyer' | 'seller' | 'admin' {
+  return (user?.user_metadata?.role ?? 'buyer') as 'buyer' | 'seller' | 'admin'
+}

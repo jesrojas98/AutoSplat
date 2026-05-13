@@ -7,18 +7,21 @@ import { Login } from '@/pages/Login'
 import { Register } from '@/pages/Register'
 import { PublishVehicle } from '@/pages/PublishVehicle'
 import { Dashboard } from '@/pages/Dashboard'
+import { AuthCallback } from '@/pages/AuthCallback'
 import { NotFound } from '@/pages/NotFound'
+import { SellerRoute } from '@/components/layout/SellerRoute'
 
 export function AppRouter() {
   return (
     <Routes>
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/vehicles/:id" element={<VehicleDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/publish" element={<PublishVehicle />} />
+        <Route path="/publish" element={<SellerRoute><PublishVehicle /></SellerRoute>} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="*" element={<NotFound />} />
       </Route>
