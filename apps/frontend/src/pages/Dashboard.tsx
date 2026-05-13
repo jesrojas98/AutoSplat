@@ -1,19 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { formatPriceNumber } from '@/utils/formatters'
-import { useAuthStore } from '@/store/auth.store'
+import { useAuthStore, getUserRole } from '@/store/auth.store'
 import { vehiclesService, type Vehicle } from '@/services/vehicles.service'
 import { favoritesService } from '@/services/favorites.service'
 import { api } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
 
 type Tab = 'publicaciones' | 'favoritos' | 'mensajes' | 'perfil'
 
+const ROLE_LABELS: Record<string, string> = {
+  buyer: 'Comprador',
+  seller: 'Vendedor',
+  admin: 'Administrador',
+}
+
 const STATUS_CONFIG = {
-  published:     { label: 'PUBLICADO',    color: 'text-[var(--color-primary)]',   bg: 'bg-[var(--color-primary)]/10',                    icon: 'check_circle' },
-  draft:         { label: 'BORRADOR',     color: 'text-[var(--color-outline)]',   bg: 'bg-[var(--color-surface-container-high)]',         icon: 'edit' },
-  processing_3d: { label: 'GENERANDO 3D', color: 'text-[var(--color-tertiary)]',  bg: 'bg-[var(--color-tertiary)]/10',                   icon: 'blur_on' },
-  sold:          { label: 'VENDIDO',      color: 'text-[var(--color-secondary)]', bg: 'bg-[var(--color-secondary)]/10',                  icon: 'sell' },
-  inactive:      { label: 'INACTIVO',     color: 'text-[var(--color-outline)]',   bg: 'bg-[var(--color-surface-container-high)]',         icon: 'pause_circle' },
+  published:     { label: 'PUBLICADO',    color: 'text-[var(--color-primary)]',   bg: 'bg-[var(--color-primary)]/10',             icon: 'check_circle' },
+  draft:         { label: 'BORRADOR',     color: 'text-[var(--color-outline)]',   bg: 'bg-[var(--color-surface-container-high)]', icon: 'edit' },
+  processing_3d: { label: 'GENERANDO 3D', color: 'text-[var(--color-tertiary)]',  bg: 'bg-[var(--color-tertiary)]/10',            icon: 'blur_on' },
+  sold:          { label: 'VENDIDO',      color: 'text-[var(--color-secondary)]', bg: 'bg-[var(--color-secondary)]/10',           icon: 'sell' },
+  inactive:      { label: 'INACTIVO',     color: 'text-[var(--color-outline)]',   bg: 'bg-[var(--color-surface-container-high)]', icon: 'pause_circle' },
 } as const
 
 export function Dashboard() {
@@ -22,21 +29,68 @@ export function Dashboard() {
   const setTab = (t: Tab) => setSearchParams({ tab: t })
 
   const { user } = useAuthStore()
+  const role = getUserRole(user)
+  const isSeller = role === 'seller' || role === 'admin'
   const displayName = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? ''
   const avatarUrl = user?.user_metadata?.avatar_url ?? null
+
   const [listings, setListings] = useState<Vehicle[]>([])
   const [favorites, setFavorites] = useState<any[]>([])
   const [messages, setMessages] = useState<any[]>([])
   const [loadingListings, setLoadingListings] = useState(true)
 
+  // Profile edit state
+  const [editMode, setEditMode] = useState(false)
+  const [editName, setEditName] = useState(displayName)
+  const [editPhone, setEditPhone] = useState('')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileError, setProfileError] = useState('')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     vehiclesService.getMine().then(setListings).finally(() => setLoadingListings(false))
+    api.get('/messages').then((r) => setMessages(r.data)).catch(() => {})
   }, [])
 
   useEffect(() => {
     if (tab === 'favoritos') favoritesService.getAll().then(setFavorites)
     if (tab === 'mensajes') api.get('/messages').then((r) => setMessages(r.data))
   }, [tab])
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault()
+    setSavingProfile(true)
+    setProfileError('')
+    try {
+      await api.patch('/users/me', { name: editName, phone: editPhone || undefined })
+      setEditMode(false)
+    } catch {
+      setProfileError('Error al guardar los cambios')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAvatar(true)
+    try {
+      const form = new FormData()
+      form.append('avatar', file)
+      const { data } = await api.post<{ url: string }>('/upload/avatar', form)
+      await api.patch('/users/me', { avatar_url: data.url })
+      await supabase.auth.updateUser({ data: { avatar_url: data.url } })
+      setLocalAvatar(data.url)
+    } catch {
+      // silently fail — avatar is non-critical
+    } finally {
+      setUploadingAvatar(false)
+      e.target.value = ''
+    }
+  }
 
   const stats = [
     { label: 'PUBLICACIONES', value: String(listings.length), icon: 'directions_car' },
@@ -64,15 +118,17 @@ export function Dashboard() {
           <p className="text-[var(--color-on-surface-variant)] text-sm">{user.email}</p>
           <div className="flex items-center gap-3 mt-2">
             <span className="label-caps text-[10px] bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-2 py-1 rounded">
-              VENDEDOR
+              {(ROLE_LABELS[role] ?? role).toUpperCase()}
             </span>
           </div>
         </div>
-        <Link to="/publish"
-          className="glow-primary px-6 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all flex items-center gap-2 shrink-0">
-          <span className="material-symbols-outlined text-base">add</span>
-          PUBLICAR VEHÍCULO
-        </Link>
+        {isSeller && (
+          <Link to="/publish"
+            className="glow-primary px-6 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all flex items-center gap-2 shrink-0">
+            <span className="material-symbols-outlined text-base">add</span>
+            PUBLICAR VEHÍCULO
+          </Link>
+        )}
       </div>
 
       {/* Stats */}
@@ -118,7 +174,7 @@ export function Dashboard() {
               <div key={i} className="glass-card rounded-xl p-4 h-24 animate-pulse bg-[var(--color-surface-container-high)]" />
             ))
           ) : listings.length === 0 ? (
-            <EmptyState icon="directions_car" text="Aún no tienes publicaciones." action={{ label: 'PUBLICAR VEHÍCULO', to: '/publish' }} />
+            <EmptyState icon="directions_car" text="Aún no tienes publicaciones." action={isSeller ? { label: 'PUBLICAR VEHÍCULO', to: '/publish' } : undefined} />
           ) : listings.map((v) => {
             const st = STATUS_CONFIG[v.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft
             const thumb = v.vehicle_images?.[0]?.thumbnail_url ?? v.vehicle_images?.[0]?.image_url ?? ''
@@ -232,22 +288,108 @@ export function Dashboard() {
         <div className="max-w-lg">
           <div className="glass-card rounded-xl p-6 flex flex-col gap-5">
             <h2 style={{ fontFamily: 'var(--font-headline)', fontSize: 18, fontWeight: 600 }} className="mb-2">Información personal</h2>
-            {[
-              { label: 'NOMBRE', value: displayName, icon: 'person' },
-              { label: 'CORREO', value: user.email ?? '', icon: 'mail' },
-              { label: 'ROL', value: 'Vendedor', icon: 'storefront' },
-            ].map(({ label, value, icon }) => (
-              <div key={label} className="flex items-center gap-4 py-3 border-b border-[var(--color-outline-variant)]/20 last:border-0">
-                <span className="material-symbols-outlined text-[var(--color-primary)] text-base">{icon}</span>
-                <div className="flex-1">
-                  <p className="label-caps text-[var(--color-on-surface-variant)] text-[10px]">{label}</p>
-                  <p className="text-[var(--color-on-surface)] text-sm mt-0.5">{value}</p>
+
+            {/* Avatar */}
+            <div className="flex items-center gap-5 pb-4 border-b border-[var(--color-outline-variant)]/20">
+              <div className="relative shrink-0">
+                <div className="w-20 h-20 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center overflow-hidden">
+                  {(localAvatar ?? avatarUrl) ? (
+                    <img src={localAvatar ?? avatarUrl!} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-[var(--color-on-primary-container)]" style={{ fontSize: 36 }}>person</span>
+                  )}
                 </div>
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-white animate-spin text-xl">progress_activity</span>
+                  </div>
+                )}
               </div>
-            ))}
-            <button className="glow-primary w-full py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all mt-2">
-              EDITAR PERFIL
-            </button>
+              <div>
+                <p className="text-[var(--color-on-surface)] text-sm font-medium mb-1">{displayName}</p>
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="label-caps text-[10px] px-3 py-1.5 border border-[var(--color-outline-variant)]/50 rounded-lg hover:bg-[var(--color-surface-container)] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-sm">photo_camera</span>
+                  CAMBIAR FOTO
+                </button>
+              </div>
+            </div>
+
+            {!editMode ? (
+              <>
+                {[
+                  { label: 'NOMBRE', value: displayName, icon: 'person' },
+                  { label: 'CORREO', value: user.email ?? '', icon: 'mail' },
+                  { label: 'ROL', value: ROLE_LABELS[role] ?? role, icon: 'storefront' },
+                ].map(({ label, value, icon }) => (
+                  <div key={label} className="flex items-center gap-4 py-3 border-b border-[var(--color-outline-variant)]/20 last:border-0">
+                    <span className="material-symbols-outlined text-[var(--color-primary)] text-base">{icon}</span>
+                    <div className="flex-1">
+                      <p className="label-caps text-[var(--color-on-surface-variant)] text-[10px]">{label}</p>
+                      <p className="text-[var(--color-on-surface)] text-sm mt-0.5">{value}</p>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  onClick={() => { setEditName(displayName); setEditMode(true) }}
+                  className="glow-primary w-full py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all mt-2"
+                >
+                  EDITAR PERFIL
+                </button>
+              </>
+            ) : (
+              <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
+                {profileError && (
+                  <div className="px-4 py-3 rounded-lg bg-[var(--color-secondary)]/10 border border-[var(--color-secondary)]/30 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[var(--color-secondary)] text-base">error</span>
+                    <p className="text-[var(--color-secondary)] text-sm">{profileError}</p>
+                  </div>
+                )}
+                <div>
+                  <label className="label-caps text-[var(--color-on-surface-variant)] block mb-2">NOMBRE</label>
+                  <div className="flex items-center bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-4 py-3 focus-within:border-[var(--color-primary)]/60 transition-colors">
+                    <span className="material-symbols-outlined text-[var(--color-outline)] mr-3 text-xl">person</span>
+                    <input
+                      type="text" required value={editName} onChange={(e) => setEditName(e.target.value)}
+                      className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="label-caps text-[var(--color-on-surface-variant)] block mb-2">TELÉFONO (opcional)</label>
+                  <div className="flex items-center bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-4 py-3 focus-within:border-[var(--color-primary)]/60 transition-colors">
+                    <span className="material-symbols-outlined text-[var(--color-outline)] mr-3 text-xl">phone</span>
+                    <input
+                      type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder="+56 9 1234 5678"
+                      className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setEditMode(false); setProfileError('') }}
+                    className="flex-1 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all"
+                  >
+                    CANCELAR
+                  </button>
+                  <button
+                    type="submit" disabled={savingProfile}
+                    className="flex-1 glow-primary py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {savingProfile ? (
+                      <><span className="material-symbols-outlined text-base animate-spin">progress_activity</span>GUARDANDO...</>
+                    ) : 'GUARDAR'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
