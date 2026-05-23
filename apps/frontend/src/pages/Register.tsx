@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 
@@ -11,18 +11,26 @@ export function Register() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const { registerWithEmail, loginWithGoogle, loading } = useAuthStore()
+  const [submitting, setSubmitting] = useState(false)
+  const { user, loading, registerWithEmail, loginWithGoogle } = useAuthStore()
 
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!loading && user) navigate('/dashboard', { replace: true })
+  }, [user, loading, navigate])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setSubmitting(true)
     try {
       await registerWithEmail(name, email, password, role)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Error al crear la cuenta')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -75,6 +83,7 @@ export function Register() {
               <div className="flex items-center bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-4 py-3 focus-within:border-[var(--color-primary)]/60 transition-colors">
                 <span className="material-symbols-outlined text-[var(--color-outline)] mr-3 text-xl">person</span>
                 <input type="text" required placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
                   className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]" />
               </div>
             </div>
@@ -84,6 +93,7 @@ export function Register() {
               <div className="flex items-center bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-4 py-3 focus-within:border-[var(--color-primary)]/60 transition-colors">
                 <span className="material-symbols-outlined text-[var(--color-outline)] mr-3 text-xl">mail</span>
                 <input type="email" required placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="off"
                   className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]" />
               </div>
             </div>
@@ -93,6 +103,7 @@ export function Register() {
               <div className="flex items-center bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-4 py-3 focus-within:border-[var(--color-primary)]/60 transition-colors">
                 <span className="material-symbols-outlined text-[var(--color-outline)] mr-3 text-xl">lock</span>
                 <input type={showPassword ? 'text' : 'password'} required minLength={8} placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
                   className="bg-transparent border-none outline-none text-[var(--color-on-surface)] w-full text-sm placeholder:text-[var(--color-outline)]" />
                 <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-[var(--color-outline)] hover:text-[var(--color-on-surface)] transition-colors ml-2">
                   <span className="material-symbols-outlined text-xl">{showPassword ? 'visibility_off' : 'visibility'}</span>
@@ -102,10 +113,10 @@ export function Register() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitting}
               className="glow-primary w-full py-4 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {submitting ? (
                 <>
                   <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
                   CREANDO CUENTA...
@@ -122,7 +133,7 @@ export function Register() {
 
           <button
             type="button"
-            onClick={loginWithGoogle}
+            onClick={() => loginWithGoogle(role)}
             className="w-full flex items-center justify-center gap-3 py-3 rounded-lg border border-[var(--color-outline-variant)]/30 hover:border-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container)] transition-all"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

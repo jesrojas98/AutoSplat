@@ -218,4 +218,14 @@ describe('getUserRole()', () => {
     const user = { user_metadata: { role: 'admin' } } as unknown as User
     expect(getUserRole(user)).toBe('admin')
   })
+
+  it('retorna buyer cuando role viene como objeto', () => {
+    const user = { user_metadata: { role: { name: 'seller' } } } as unknown as User
+    expect(getUserRole(user)).toBe('buyer')
+  })
+
+  it('retorna buyer cuando role tiene un string no soportado', () => {
+    const user = { user_metadata: { role: 'authenticated' } } as unknown as User
+    expect(getUserRole(user)).toBe('buyer')
+  })
 })

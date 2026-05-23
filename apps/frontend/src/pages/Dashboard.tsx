@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { Avatar } from '@/components/ui/Avatar'
 import { formatPriceNumber } from '@/utils/formatters'
 import { useAuthStore, getUserRole } from '@/store/auth.store'
 import { vehiclesService, type Vehicle } from '@/services/vehicles.service'
@@ -28,7 +29,7 @@ export function Dashboard() {
   const tab: Tab = (searchParams.get('tab') as Tab) ?? 'publicaciones'
   const setTab = (t: Tab) => setSearchParams({ tab: t })
 
-  const { user } = useAuthStore()
+  const { user, loading: authLoading } = useAuthStore()
   const role = getUserRole(user)
   const isSeller = role === 'seller' || role === 'admin'
   const displayName = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? ''
@@ -99,6 +100,12 @@ export function Dashboard() {
     { label: 'MENSAJES', value: String(messages.length), icon: 'chat_bubble' },
   ]
 
+  if (authLoading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <span className="material-symbols-outlined text-[var(--color-primary)] animate-spin" style={{ fontSize: 40 }}>progress_activity</span>
+    </div>
+  )
+
   if (!user) return null
 
   return (
@@ -106,12 +113,8 @@ export function Dashboard() {
 
       {/* Header perfil */}
       <div className="glass-card rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-        <div className="w-16 h-16 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center shrink-0 overflow-hidden">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <span className="material-symbols-outlined text-[var(--color-on-primary-container)]" style={{ fontSize: 32 }}>person</span>
-          )}
+        <div className="w-16 h-16 rounded-full overflow-hidden shrink-0">
+          <Avatar src={avatarUrl} name={displayName} size={64} className="rounded-full" />
         </div>
         <div className="flex-1">
           <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 24, fontWeight: 700 }}>{displayName}</h1>
@@ -292,12 +295,8 @@ export function Dashboard() {
             {/* Avatar */}
             <div className="flex items-center gap-5 pb-4 border-b border-[var(--color-outline-variant)]/20">
               <div className="relative shrink-0">
-                <div className="w-20 h-20 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center overflow-hidden">
-                  {(localAvatar ?? avatarUrl) ? (
-                    <img src={localAvatar ?? avatarUrl!} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="material-symbols-outlined text-[var(--color-on-primary-container)]" style={{ fontSize: 36 }}>person</span>
-                  )}
+                <div className="w-20 h-20 rounded-full overflow-hidden">
+                  <Avatar src={localAvatar ?? avatarUrl} name={displayName} size={80} className="rounded-full" />
                 </div>
                 {uploadingAvatar && (
                   <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">

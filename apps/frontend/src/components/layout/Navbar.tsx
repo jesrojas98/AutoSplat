@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/store/theme.store'
 import { useAuthStore, getUserRole } from '@/store/auth.store'
 import { notificationsService, type Notification } from '@/services/notifications.service'
+import { Avatar } from '@/components/ui/Avatar'
 
 const BASE_LINKS = [
   { to: '/', label: 'INICIO' },
@@ -29,7 +30,10 @@ export function Navbar() {
   const displayName: string = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? ''
   const avatarUrl: string | null = user?.user_metadata?.avatar_url ?? null
 
-  const links = isSeller
+  const isAdmin = role === 'admin'
+  const links = isAdmin
+    ? [BASE_LINKS[0], BASE_LINKS[1], { to: '/admin', label: 'ADMIN' }, BASE_LINKS[2]]
+    : isSeller
     ? [BASE_LINKS[0], BASE_LINKS[1], { to: '/publish', label: 'PUBLICAR' }, BASE_LINKS[2]]
     : BASE_LINKS
   const navigate = useNavigate()
@@ -219,11 +223,8 @@ export function Navbar() {
                 onClick={() => { setUserOpen((v) => !v); setNotifOpen(false) }}
                 className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full hover:bg-[var(--color-surface-container-high)] transition-all"
               >
-                <div className="w-8 h-8 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center overflow-hidden">
-                  {avatarUrl
-                    ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-                    : <span className="material-symbols-outlined text-[var(--color-on-primary-container)] text-base">person</span>
-                  }
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  <Avatar src={avatarUrl} name={displayName} size={32} className="rounded-full" />
                 </div>
                 <span className="hidden sm:block label-caps text-[var(--color-on-surface)] text-[10px] max-w-24 truncate">
                   {displayName.split(' ')[0].toUpperCase()}
@@ -237,11 +238,8 @@ export function Navbar() {
                 <div className="absolute right-0 top-full mt-2 w-60 dropdown-card rounded-xl overflow-hidden shadow-xl">
                   <div className="px-4 py-4 border-b border-[var(--color-outline-variant)]/20">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[var(--color-primary-container)] flex items-center justify-center shrink-0 overflow-hidden">
-                        {avatarUrl
-                          ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-                          : <span className="material-symbols-outlined text-[var(--color-on-primary-container)] text-base">person</span>
-                        }
+                      <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
+                        <Avatar src={avatarUrl} name={displayName} size={40} className="rounded-full" />
                       </div>
                       <div className="min-w-0">
                         <p style={{ fontWeight: 600, fontSize: 14 }} className="text-[var(--color-on-surface)] truncate">{displayName}</p>

@@ -2,13 +2,15 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
 
+export type UserRole = 'buyer' | 'seller' | 'admin'
+
 interface AuthStore {
   user: User | null
   session: Session | null
   loading: boolean
-  loginWithGoogle: () => Promise<void>
+  loginWithGoogle: (role?: Extract<UserRole, 'buyer' | 'seller'>) => Promise<void>
   loginWithEmail: (email: string, password: string) => Promise<void>
-  registerWithEmail: (name: string, email: string, password: string, role: 'buyer' | 'seller') => Promise<void>
+  registerWithEmail: (name: string, email: string, password: string, role: Extract<UserRole, 'buyer' | 'seller'>) => Promise<void>
   logout: () => Promise<void>
   init: () => () => void
 }
@@ -18,7 +20,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   session: null,
   loading: true,
 
-  async loginWithGoogle() {
+  async loginWithGoogle(role?: 'buyer' | 'seller') {
+    if (role) localStorage.setItem('oauth_role', role)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
@@ -68,7 +71,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 }))
 
+export function normalizeUserRole(role: unknown): UserRole {
+  return role === 'seller' || role === 'admin' ? role : 'buyer'
+}
+
 // Helper para leer el rol desde el user de Supabase
-export function getUserRole(user: User | null): 'buyer' | 'seller' | 'admin' {
-  return (user?.user_metadata?.role ?? 'buyer') as 'buyer' | 'seller' | 'admin'
+export function getUserRole(user: User | null): UserRole {
+  return normalizeUserRole(user?.user_metadata?.role)
 }

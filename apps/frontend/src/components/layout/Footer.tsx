@@ -1,8 +1,9 @@
+import { Link } from 'react-router-dom'
+
 const footerLinks = [
-  'Política de Privacidad',
-  'Términos de Servicio',
-  'Documentación API',
-  'Soporte',
+  { label: 'Política de Privacidad', to: '/privacy' },
+  { label: 'Términos de Servicio', to: '/terms' },
+  { label: 'Soporte', to: '/support' },
 ]
 
 export function Footer() {
@@ -23,13 +24,13 @@ export function Footer() {
 
         <div className="flex flex-wrap justify-center gap-8">
           {footerLinks.map((link) => (
-            <a
-              key={link}
-              href="#"
+            <Link
+              key={link.to}
+              to={link.to}
               className="label-caps text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
             >
-              {link.toUpperCase()}
-            </a>
+              {link.label.toUpperCase()}
+            </Link>
           ))}
         </div>
       </div>

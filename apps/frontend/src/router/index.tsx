@@ -7,9 +7,13 @@ import { Login } from '@/pages/Login'
 import { Register } from '@/pages/Register'
 import { PublishVehicle } from '@/pages/PublishVehicle'
 import { Dashboard } from '@/pages/Dashboard'
+import { Admin } from '@/pages/Admin'
 import { AuthCallback } from '@/pages/AuthCallback'
+import { LegalPage } from '@/pages/LegalPage'
 import { NotFound } from '@/pages/NotFound'
+import { Support } from '@/pages/Support'
 import { SellerRoute } from '@/components/layout/SellerRoute'
+import { AdminRoute } from '@/components/layout/AdminRoute'
 
 export function AppRouter() {
   return (
@@ -23,6 +27,10 @@ export function AppRouter() {
         <Route path="/register" element={<Register />} />
         <Route path="/publish" element={<SellerRoute><PublishVehicle /></SellerRoute>} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+        <Route path="/privacy" element={<LegalPage type="privacy" />} />
+        <Route path="/terms" element={<LegalPage type="terms" />} />
+        <Route path="/support" element={<Support />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

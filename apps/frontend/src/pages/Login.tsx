@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 
@@ -7,17 +7,26 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const { loginWithEmail, loginWithGoogle, loading } = useAuthStore()
+  const [submitting, setSubmitting] = useState(false)
+  const { user, loading, loginWithEmail, loginWithGoogle } = useAuthStore()
   const navigate = useNavigate()
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (!loading && user) navigate('/dashboard', { replace: true })
+  }, [user, loading, navigate])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setSubmitting(true)
     try {
       await loginWithEmail(email, password)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Error al iniciar sesión')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -81,10 +90,10 @@ export function Login() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitting}
               className="glow-primary w-full py-4 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {submitting ? (
                 <>
                   <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
                   INGRESANDO...
@@ -101,7 +110,7 @@ export function Login() {
 
           <button
             type="button"
-            onClick={loginWithGoogle}
+            onClick={() => loginWithGoogle()}
             className="w-full flex items-center justify-center gap-3 py-3 rounded-lg border border-[var(--color-outline-variant)]/30 hover:border-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container)] transition-all"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

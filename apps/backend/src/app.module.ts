@@ -12,6 +12,7 @@ import { MessagesModule } from './messages/messages.module'
 import { UploadModule } from './upload/upload.module'
 import { JobsModule } from './jobs/jobs.module'
 import { NotificationsModule } from './notifications/notifications.module'
+import { AdminModule } from './admin/admin.module'
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { NotificationsModule } from './notifications/notifications.module'
     UploadModule,
     JobsModule,
     NotificationsModule,
+    AdminModule,
   ],
   providers: [
     {

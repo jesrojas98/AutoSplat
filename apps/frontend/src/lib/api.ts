@@ -12,12 +12,20 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
+let signingOut = false
+
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      supabase.auth.signOut()
-      window.location.href = '/login'
+  async (err) => {
+    if (err.response?.status === 401 && !signingOut) {
+      // Solo forzar logout si la sesión de Supabase realmente no existe
+      const { data } = await supabase.auth.getSession()
+      if (!data.session) {
+        signingOut = true
+        await supabase.auth.signOut()
+        signingOut = false
+        window.location.replace('/login')
+      }
     }
     return Promise.reject(err)
   },
