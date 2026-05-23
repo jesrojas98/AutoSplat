@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { HeroBackground3D } from './HeroBackground3D'
 
 export function HeroSection() {
   const navigate = useNavigate()
@@ -14,97 +15,109 @@ export function HeroSection() {
   }
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center text-center px-[var(--spacing-gutter)] overflow-hidden">
-      {/* Gradient overlay */}
+    <section className="hero-section relative min-h-[90vh] flex flex-col items-center justify-center text-center px-[var(--spacing-gutter)] overflow-hidden">
+
+      {/* Canvas + orbs — capa base */}
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+        <HeroBackground3D />
+      </div>
+
+      {/* Vignette — sobre el canvas para atenuar bordes */}
       <div
-        className="absolute inset-0 -z-10"
-        style={{ background: 'linear-gradient(to bottom, rgba(37,99,235,0.08), var(--color-background))' }}
+        className="hero-vignette absolute inset-0 pointer-events-none"
+        style={{
+          zIndex: 1,
+          background: 'radial-gradient(ellipse 80% 100% at 50% 50%, transparent 20%, var(--color-background) 80%)',
+        }}
       />
 
-      {/* Background dot pattern */}
-      <div className="absolute inset-0 -z-20 opacity-5">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: 'radial-gradient(circle, #b4c5ff 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
-          }}
-        />
-      </div>
-
-      {/* Eyebrow */}
-      <span className="label-caps text-[var(--color-primary)] mb-6 tracking-widest">
-        MARKETPLACE AUTOMOTRIZ DE NUEVA GENERACIÓN
-      </span>
-
-      {/* Headline */}
-      <h1
-        className="mb-6 max-w-4xl tracking-tight leading-none uppercase"
+      {/* Bottom fade */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none"
         style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 'clamp(40px, 6vw, 64px)',
-          fontWeight: 700,
-          letterSpacing: '-0.02em',
-          lineHeight: 1.1,
+          zIndex: 1,
+          background: 'linear-gradient(to bottom, transparent, var(--color-background))',
         }}
-      >
-        El futuro de la compra de autos es{' '}
-        <span className="text-[var(--color-primary)] text-glow">3D.</span>
-      </h1>
+      />
 
-      <p
-        className="text-[var(--color-on-surface-variant)] mb-12 max-w-2xl mx-auto"
-        style={{ fontFamily: 'var(--font-body)', fontSize: 18, lineHeight: 1.6 }}
-      >
-        Entra al showroom del mañana. Explora vehículos con tecnología de reconstrucción
-        3D de precisión milimétrica mediante Gaussian Splatting.
-      </p>
+      {/* Contenido — sobre la vignette */}
+      <div className="relative flex flex-col items-center w-full" style={{ zIndex: 2 }}>
 
-      {/* Search bar */}
-      <div className="glass-card p-2 rounded-xl flex flex-col md:flex-row items-stretch gap-2 w-full max-w-3xl">
-        <SearchInput
-          icon="directions_car"
-          placeholder="Marca (ej. Toyota)"
-          value={search.brand}
-          onChange={(v) => setSearch((s) => ({ ...s, brand: v }))}
-        />
-        <SearchInput
-          icon="settings"
-          placeholder="Modelo (ej. Corolla)"
-          value={search.model}
-          onChange={(v) => setSearch((s) => ({ ...s, model: v }))}
-        />
-        <SearchInput
-          icon="location_on"
-          placeholder="Ubicación"
-          value={search.location}
-          onChange={(v) => setSearch((s) => ({ ...s, location: v }))}
-        />
-        <button
-          onClick={handleSearch}
-          className="glow-primary bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-8 py-3 rounded-lg label-caps font-bold hover:bg-[var(--color-primary)] active:scale-95 transition-all whitespace-nowrap"
+        {/* Eyebrow */}
+        <span className="label-caps text-[var(--color-primary)] mb-6 tracking-widest">
+          MARKETPLACE AUTOMOTRIZ DE NUEVA GENERACIÓN
+        </span>
+
+        {/* Headline */}
+        <h1
+          className="mb-6 max-w-4xl tracking-tight leading-none uppercase"
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(40px, 6vw, 64px)',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.1,
+          }}
         >
-          BUSCAR
-        </button>
-      </div>
+          El futuro de la compra de autos es{' '}
+          <span className="text-[var(--color-primary)] text-glow">3D.</span>
+        </h1>
 
-      {/* Stats */}
-      <div className="flex flex-wrap justify-center gap-8 mt-12 opacity-60">
-        {[
-          { value: '2.400+', label: 'VEHÍCULOS' },
-          { value: '380+', label: 'MODELOS 3D' },
-          { value: '48H', label: 'PROCESAMIENTO' },
-        ].map(({ value, label }) => (
-          <div key={label} className="text-center">
-            <p
-              className="text-[var(--color-primary)]"
-              style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700 }}
-            >
-              {value}
-            </p>
-            <p className="label-caps text-[var(--color-on-surface-variant)]">{label}</p>
-          </div>
-        ))}
+        <p
+          className="text-[var(--color-on-surface-variant)] mb-12 max-w-2xl mx-auto"
+          style={{ fontFamily: 'var(--font-body)', fontSize: 18, lineHeight: 1.6 }}
+        >
+          Entra al showroom del mañana. Explora vehículos con tecnología de reconstrucción
+          3D de precisión milimétrica mediante Gaussian Splatting.
+        </p>
+
+        {/* Search bar */}
+        <div className="glass-card p-2 rounded-xl flex flex-col md:flex-row items-stretch gap-2 w-full max-w-3xl">
+          <SearchInput
+            icon="directions_car"
+            placeholder="Marca (ej. Toyota)"
+            value={search.brand}
+            onChange={(v) => setSearch((s) => ({ ...s, brand: v }))}
+          />
+          <SearchInput
+            icon="settings"
+            placeholder="Modelo (ej. Corolla)"
+            value={search.model}
+            onChange={(v) => setSearch((s) => ({ ...s, model: v }))}
+          />
+          <SearchInput
+            icon="location_on"
+            placeholder="Ubicación"
+            value={search.location}
+            onChange={(v) => setSearch((s) => ({ ...s, location: v }))}
+          />
+          <button
+            onClick={handleSearch}
+            className="glow-primary bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-8 py-3 rounded-lg label-caps font-bold hover:bg-[var(--color-primary)] active:scale-95 transition-all whitespace-nowrap"
+          >
+            BUSCAR
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="flex flex-wrap justify-center gap-8 mt-12 opacity-60">
+          {[
+            { value: '2.400+', label: 'VEHÍCULOS' },
+            { value: '380+', label: 'MODELOS 3D' },
+            { value: '48H', label: 'PROCESAMIENTO' },
+          ].map(({ value, label }) => (
+            <div key={label} className="text-center">
+              <p
+                className="text-[var(--color-primary)]"
+                style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700 }}
+              >
+                {value}
+              </p>
+              <p className="label-caps text-[var(--color-on-surface-variant)]">{label}</p>
+            </div>
+          ))}
+        </div>
+
       </div>
     </section>
   )
