@@ -2,6 +2,8 @@ import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/co
 import { MessagesService } from './messages.service'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../common/decorators/current-user.decorator'
+import { RateLimit } from '../common/guards/rate-limit.guard'
+import { SendMessageDto } from './dto/send-message.dto'
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard)
@@ -14,9 +16,10 @@ export class MessagesController {
   }
 
   @Post()
+  @RateLimit(20, 60_000) // 20 mensajes por minuto por IP
   send(
     @CurrentUser() user: { id: string },
-    @Body() body: { receiver_id: string; vehicle_id: string; content: string },
+    @Body() body: SendMessageDto,
   ) {
     return this.messages.sendMessage(user.id, body)
   }

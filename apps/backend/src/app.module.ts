@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
-import { APP_PIPE } from '@nestjs/core'
+import { APP_PIPE, APP_GUARD } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
+import { RateLimitGuard } from './common/guards/rate-limit.guard'
 import { SupabaseModule } from './supabase/supabase.module'
 import { AuthModule } from './auth/auth.module'
 import { UsersModule } from './users/users.module'
@@ -28,7 +29,11 @@ import { NotificationsModule } from './notifications/notifications.module'
   providers: [
     {
       provide: APP_PIPE,
-      useValue: new ValidationPipe({ whitelist: true, transform: true }),
+      useValue: new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
     },
   ],
 })

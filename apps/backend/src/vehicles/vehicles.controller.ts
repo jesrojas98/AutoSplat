@@ -4,6 +4,7 @@ import type { VehicleFilters } from './vehicles.service'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../common/decorators/current-user.decorator'
+import { RateLimit } from '../common/guards/rate-limit.guard'
 
 @Controller('vehicles')
 export class VehiclesController {
@@ -27,6 +28,7 @@ export class VehiclesController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
+  @RateLimit(10, 60_000) // 10 publicaciones por minuto por IP
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateVehicleDto) {
     return this.vehicles.create(user.id, dto)
   }
