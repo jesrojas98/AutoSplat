@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatPriceNumber } from '@/utils/formatters'
 import { useAuthStore, getUserRole } from '@/store/auth.store'
@@ -26,6 +26,7 @@ const STATUS_CONFIG = {
 
 export function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const tab: Tab = (searchParams.get('tab') as Tab) ?? 'publicaciones'
   const setTab = (t: Tab) => setSearchParams({ tab: t })
 
@@ -39,6 +40,10 @@ export function Dashboard() {
   const [favorites, setFavorites] = useState<any[]>([])
   const [messages, setMessages] = useState<any[]>([])
   const [loadingListings, setLoadingListings] = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState<Vehicle | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [listingSearch, setListingSearch] = useState('')
+  const [listingStatusFilter, setListingStatusFilter] = useState<string>('all')
 
   // Profile edit state
   const [editMode, setEditMode] = useState(false)
@@ -90,6 +95,19 @@ export function Dashboard() {
     } finally {
       setUploadingAvatar(false)
       e.target.value = ''
+    }
+  }
+
+  async function handleDelete(vehicle: Vehicle) {
+    setDeleting(true)
+    try {
+      await vehiclesService.remove(vehicle.id)
+      setListings((prev) => prev.filter((v) => v.id !== vehicle.id))
+      setConfirmDelete(null)
+    } catch {
+      // silently fail — user stays on page
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -172,13 +190,68 @@ export function Dashboard() {
       {/* Tab: Mis publicaciones */}
       {tab === 'publicaciones' && (
         <div className="flex flex-col gap-4">
-          {loadingListings ? (
+          {/* Barra de filtros (solo cuando hay publicaciones) */}
+          {!loadingListings && listings.length > 0 && (
+            <div className="glass-card rounded-xl px-4 py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <div className="relative flex-1 min-w-0">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-outline)] text-base">search</span>
+                <input
+                  value={listingSearch}
+                  onChange={(e) => setListingSearch(e.target.value)}
+                  placeholder="Buscar por marca, modelo..."
+                  className="pl-9 pr-4 py-2 w-full rounded-lg border border-[var(--color-outline-variant)]/30 bg-[var(--color-surface-container)] text-[var(--color-on-surface)] text-sm outline-none focus:border-[var(--color-primary)]/60 transition-colors"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {([
+                  { value: 'all',          label: 'Todos' },
+                  { value: 'published',    label: 'Publicados' },
+                  { value: 'draft',        label: 'Borradores' },
+                  { value: 'inactive',     label: 'Inactivos' },
+                  { value: 'sold',         label: 'Vendidos' },
+                  { value: 'processing_3d',label: '3D' },
+                ] as { value: string; label: string }[])
+                  .filter(f => f.value === 'all' || listings.some(v => v.status === f.value))
+                  .map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setListingStatusFilter(f.value)}
+                      className={`px-3 py-1.5 rounded-lg label-caps text-[10px] transition-all ${
+                        listingStatusFilter === f.value
+                          ? 'bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] border border-[var(--color-primary)]/30'
+                          : 'border border-[var(--color-outline-variant)]/30 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-container-high)]'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))
+                }
+              </div>
+            </div>
+          )}
+
+          {(() => {
+            const filtered = listings.filter((v) => {
+              const matchesStatus = listingStatusFilter === 'all' || v.status === listingStatusFilter
+              const q = listingSearch.toLowerCase()
+              const matchesSearch = !q || `${v.brand} ${v.model} ${v.year}`.toLowerCase().includes(q)
+              return matchesStatus && matchesSearch
+            })
+            return loadingListings ? (
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="glass-card rounded-xl p-4 h-24 animate-pulse bg-[var(--color-surface-container-high)]" />
             ))
           ) : listings.length === 0 ? (
             <EmptyState icon="directions_car" text="Aún no tienes publicaciones." action={isSeller ? { label: 'PUBLICAR VEHÍCULO', to: '/publish' } : undefined} />
-          ) : listings.map((v) => {
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+              <span className="material-symbols-outlined text-[var(--color-outline)]" style={{ fontSize: 44 }}>search_off</span>
+              <p className="text-[var(--color-on-surface-variant)] text-sm">Sin resultados para ese filtro.</p>
+              <button type="button" onClick={() => { setListingSearch(''); setListingStatusFilter('all') }}
+                className="label-caps text-[10px] text-[var(--color-primary)] hover:underline">LIMPIAR FILTROS</button>
+            </div>
+          ) : filtered.map((v) => {
             const st = STATUS_CONFIG[v.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft
             const thumb = v.vehicle_images?.[0]?.thumbnail_url ?? v.vehicle_images?.[0]?.image_url ?? ''
             return (
@@ -204,7 +277,7 @@ export function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className={`flex items-center gap-1.5 label-caps text-[10px] px-3 py-1.5 rounded-full ${st.bg} ${st.color}`}>
                     <span className="material-symbols-outlined text-sm">{st.icon}</span>
                     {st.label}
@@ -213,10 +286,27 @@ export function Dashboard() {
                     className="p-2 rounded-lg hover:bg-[var(--color-surface-container-high)] transition-colors" title="Ver publicación">
                     <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-base">open_in_new</span>
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/vehicles/${v.id}/edit`)}
+                    className="p-2 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors"
+                    title="Editar publicación"
+                  >
+                    <span className="material-symbols-outlined text-[var(--color-primary)] text-base">edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(v)}
+                    className="p-2 rounded-lg hover:bg-[var(--color-secondary)]/10 transition-colors"
+                    title="Eliminar publicación"
+                  >
+                    <span className="material-symbols-outlined text-[var(--color-secondary)] text-base">delete</span>
+                  </button>
                 </div>
               </div>
             )
-          })}
+          })
+          })()}
         </div>
       )}
 
@@ -389,6 +479,45 @@ export function Dashboard() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+      {/* Modal confirmación eliminar */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="glass-card rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-[var(--color-secondary)]/10 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-[var(--color-secondary)] text-base">delete</span>
+              </div>
+              <div>
+                <p style={{ fontFamily: 'var(--font-headline)', fontWeight: 600 }}>Eliminar publicación</p>
+                <p className="text-[var(--color-on-surface-variant)] text-xs mt-0.5">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+            <p className="text-[var(--color-on-surface-variant)] text-sm mb-6">
+              ¿Eliminar <span className="text-[var(--color-on-surface)] font-medium">{confirmDelete.brand} {confirmDelete.model} {confirmDelete.year}</span>? Se borrará junto con sus fotos y modelo 3D.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+                className="flex-1 py-2.5 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps text-xs rounded-lg hover:bg-[var(--color-surface-container)] transition-all disabled:opacity-40"
+              >
+                CANCELAR
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(confirmDelete)}
+                disabled={deleting}
+                className="flex-1 py-2.5 bg-[var(--color-secondary)]/20 border border-[var(--color-secondary)]/40 text-[var(--color-secondary)] label-caps text-xs font-bold rounded-lg hover:bg-[var(--color-secondary)]/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleting
+                  ? <><span className="w-3.5 h-3.5 border-2 border-[var(--color-secondary)]/30 border-t-[var(--color-secondary)] rounded-full animate-spin" />ELIMINANDO...</>
+                  : 'ELIMINAR'}
+              </button>
+            </div>
           </div>
         </div>
       )}

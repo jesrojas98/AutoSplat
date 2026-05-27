@@ -1,101 +1,107 @@
 """
-Capa de acceso a Supabase: claim de jobs, lectura de imágenes y subida de modelos.
-El worker usa el service role key para saltarse RLS.
+Capa de acceso a Supabase via REST API con requests.
+Usa el service role key para saltarse RLS.
 """
 import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from supabase import create_client, Client
+import requests
 
 from config import Config
 
 logger = logging.getLogger(__name__)
 
-_client: Optional[Client] = None
+_HEADERS = None
 
 
-def get_client() -> Client:
-    global _client
-    if _client is None:
-        _client = create_client(Config.SUPABASE_URL, Config.SUPABASE_SERVICE_ROLE_KEY)
-    return _client
+def _headers() -> dict:
+    global _HEADERS
+    if _HEADERS is None:
+        _HEADERS = {
+            "apikey": Config.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {Config.SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        }
+    return _HEADERS
+
+
+def _url(table: str) -> str:
+    return f"{Config.SUPABASE_URL}/rest/v1/{table}"
 
 
 def claim_next_pending_job() -> Optional[dict]:
-    """
-    Busca el job pendiente más antiguo y lo marca como 'processing' de forma atómica.
-    Retorna el job completo o None si no hay nada pendiente.
-    """
-    sb = get_client()
-
-    # Leer el job pendiente más antiguo
-    res = (
-        sb.table("processing_jobs")
-        .select("id, vehicle_id, model_id")
-        .eq("status", "pending")
-        .order("priority", desc=True)
-        .order("created_at", desc=False)
-        .limit(1)
-        .execute()
+    """Busca el job pendiente más antiguo y lo marca como 'processing'."""
+    r = requests.get(
+        _url("processing_jobs"),
+        headers=_headers(),
+        params={
+            "select": "id,vehicle_id,model_id",
+            "status": "eq.pending",
+            "order": "priority.desc,created_at.asc",
+            "limit": "1",
+        },
     )
-
-    if not res.data:
+    r.raise_for_status()
+    if not r.json():
         return None
 
-    job = res.data[0]
-    job_id = job["id"]
+    job_id = r.json()[0]["id"]
 
-    # Intentar reclamar actualizando solo si sigue en 'pending'
-    claimed = (
-        sb.table("processing_jobs")
-        .update({
+    patch = requests.patch(
+        f"{_url('processing_jobs')}?id=eq.{job_id}&status=eq.pending",
+        headers=_headers(),
+        json={
             "status": "processing",
             "worker_id": Config.WORKER_ID,
             "started_at": datetime.now(timezone.utc).isoformat(),
-        })
-        .eq("id", job_id)
-        .eq("status", "pending")   # condición atómica anti-duplicado
-        .execute()
+        },
     )
-
-    if not claimed.data:
-        logger.info("Job %s ya fue reclamado por otro worker, saltando.", job_id)
+    patch.raise_for_status()
+    if not patch.json():
+        logger.info("Job %s ya fue reclamado por otro worker.", job_id)
         return None
 
     logger.info("Job %s reclamado por %s", job_id, Config.WORKER_ID)
-    return claimed.data[0]
+    return patch.json()[0]
 
 
 def get_reconstruction_images(vehicle_id: str) -> list[dict]:
     """Retorna las URLs de las imágenes de reconstrucción del vehículo."""
-    sb = get_client()
-    res = (
-        sb.table("vehicle_images")
-        .select("id, image_url, sort_order")
-        .eq("vehicle_id", vehicle_id)
-        .eq("image_type", "reconstruction")
-        .order("sort_order", desc=False)
-        .execute()
+    r = requests.get(
+        _url("vehicle_images"),
+        headers=_headers(),
+        params={
+            "select": "id,image_url,sort_order",
+            "vehicle_id": f"eq.{vehicle_id}",
+            "image_type": "eq.reconstruction",
+            "order": "sort_order.asc",
+        },
     )
-    return res.data or []
+    r.raise_for_status()
+    return r.json() or []
 
 
 def upload_model_to_storage(local_path: str, vehicle_id: str, filename: str) -> str:
-    """
-    Sube el modelo .splat a Supabase Storage.
-    Retorna la URL pública del archivo.
-    """
-    sb = get_client()
+    """Sube el modelo .splat a Supabase Storage. Retorna la URL pública."""
     storage_path = f"vehicles/{vehicle_id}/{filename}"
+    url = f"{Config.SUPABASE_URL}/storage/v1/object/{Config.STORAGE_BUCKET}/{storage_path}"
 
     with open(local_path, "rb") as f:
-        content_type = "application/octet-stream"
-        sb.storage.from_(Config.STORAGE_BUCKET).upload(
-            path=storage_path,
-            file=f,
-            file_options={"content-type": content_type, "upsert": "true"},
+        r = requests.post(
+            url,
+            headers={
+                "apikey": Config.SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {Config.SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": "application/octet-stream",
+                "x-upsert": "true",
+            },
+            data=f,
         )
+
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"Storage upload failed {r.status_code}: {r.text}")
 
     public_url = (
         f"{Config.SUPABASE_URL}/storage/v1/object/public"
@@ -105,11 +111,34 @@ def upload_model_to_storage(local_path: str, vehicle_id: str, filename: str) -> 
     return public_url
 
 
+def claim_job_by_id(job_id: str) -> Optional[dict]:
+    """Reclama un job específico por ID (Modal ya conoce el job_id)."""
+    patch = requests.patch(
+        f"{_url('processing_jobs')}?id=eq.{job_id}&status=eq.pending",
+        headers=_headers(),
+        json={
+            "status": "processing",
+            "worker_id": Config.WORKER_ID,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    patch.raise_for_status()
+    if not patch.json():
+        logger.info("Job %s ya fue reclamado o no existe.", job_id)
+        return None
+
+    logger.info("Job %s reclamado por %s", job_id, Config.WORKER_ID)
+    return patch.json()[0]
+
+
 def mark_job_failed(job_id: str, error_message: str) -> None:
     """Marca el job como fallido en Supabase."""
-    sb = get_client()
-    sb.table("processing_jobs").update({
-        "status": "failed",
-        "error_message": error_message[:1000],
-        "finished_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", job_id).execute()
+    requests.patch(
+        f"{_url('processing_jobs')}?id=eq.{job_id}",
+        headers=_headers(),
+        json={
+            "status": "failed",
+            "error_message": error_message[:1000],
+            "finished_at": datetime.now(timezone.utc).isoformat(),
+        },
+    ).raise_for_status()

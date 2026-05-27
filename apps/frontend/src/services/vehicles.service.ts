@@ -21,7 +21,7 @@ export interface Vehicle {
   created_at: string
   seller_id: string
   vehicle_images: { id: string; image_url: string; thumbnail_url: string; image_type: string; sort_order: number }[]
-  vehicle_3d_models: { id: string; status: string; model_url: string | null }[]
+  vehicle_3d_models: { id: string; status: string; model_url: string | null; preview_image_url: string | null }[]
 }
 
 export interface VehiclesResponse {

@@ -107,15 +107,26 @@ def main():
         image_records.append(rec.data[0] if rec.data else {})
         print(f"  ✓ {img.name} → {url[:60]}...")
 
-    # 3. Crear job pendiente
+    # 3. Crear registro vehicle_3d_models + job pendiente (mismo flujo que el backend)
+    model_id = str(uuid.uuid4())
+    supabase.from_("vehicle_3d_models").insert({
+        "id": model_id,
+        "vehicle_id": vehicle_id,
+        "status": "pending",
+        "input_images_count": len(images),
+    }).execute()
+
     job_id = str(uuid.uuid4())
     supabase.from_("processing_jobs").insert({
         "id": job_id,
         "vehicle_id": vehicle_id,
+        "model_id": model_id,
         "status": "pending",
         "progress": 0,
         "current_step": "pending",
     }).execute()
+
+    supabase.from_("vehicles").update({"has_3d_model": True}).eq("id", vehicle_id).execute()
 
     print(f"\n✓ Todo listo para la prueba:")
     print(f"  vehicle_id = {vehicle_id}")

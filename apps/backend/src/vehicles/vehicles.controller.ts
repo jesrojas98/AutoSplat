@@ -37,10 +37,10 @@ export class VehiclesController {
   @UseGuards(JwtAuthGuard)
   update(
     @Param('id') id: string,
-    @CurrentUser() user: { id: string },
+    @CurrentUser() user: { id: string; role: string },
     @Body() dto: Partial<CreateVehicleDto> & { status?: string },
   ) {
-    return this.vehicles.update(id, user.id, dto)
+    return this.vehicles.update(id, user.id, dto, user.role)
   }
 
   @Patch(':id/publish')
@@ -51,7 +51,7 @@ export class VehiclesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string, @CurrentUser() user: { id: string }) {
-    return this.vehicles.remove(id, user.id)
+  remove(@Param('id') id: string, @CurrentUser() user: { id: string; role: string }) {
+    return this.vehicles.remove(id, user.id, user.role)
   }
 }

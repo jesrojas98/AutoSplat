@@ -34,13 +34,14 @@ def train_splatfacto(processed_dir: Path, dest_dir: Path, job_id: str) -> Path:
         "ns-train", "splatfacto",
         "--output-dir", str(output_dir),
         "--experiment-name", experiment_name,
-        "--trainer.max-num-iterations", str(Config.TRAIN_MAX_ITERATIONS),
+        "--max-num-iterations", str(Config.TRAIN_MAX_ITERATIONS),
         "--logging.local-writer.max-log-size", "0",
-        "--vis", "tensorboard",    # headless: tensorboard no abre ventana
+        "--vis", "tensorboard",
+    ] + hw_args + [
         "nerfstudio-data",
         "--data", str(processed_dir),
         "--downscale-factor", "1",
-    ] + hw_args
+    ]
 
     logger.info(
         "Iniciando entrenamiento splatfacto (%d iteraciones)...",

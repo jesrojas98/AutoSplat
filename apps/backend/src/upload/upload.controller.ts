@@ -5,6 +5,8 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express'
 import { UploadService } from './upload.service'
 import { SupabaseService } from '../supabase/supabase.service'
+import { JobsService } from '../jobs/jobs.service'
+import { ModalService } from '../modal/modal.service'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
 
 const IMAGE_LIMITS = { fileSize: 10 * 1024 * 1024 } // 10 MB
@@ -16,6 +18,8 @@ export class UploadController {
   constructor(
     private upload: UploadService,
     private supabase: SupabaseService,
+    private jobs: JobsService,
+    private modal: ModalService,
   ) {}
 
   @Post('vehicles/:vehicleId/images')
@@ -81,6 +85,11 @@ export class UploadController {
       .select()
 
     if (error) throw new Error(error.message)
+
+    // Auto-crear job de reconstrucción y disparar Modal
+    const { job } = await this.jobs.create(vehicleId, files.length)
+    await this.modal.triggerJob(job.id, vehicleId)
+
     return data
   }
 

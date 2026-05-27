@@ -32,7 +32,7 @@ export class VehiclesService {
     const { page = 1, limit = 12, search, brand, minPrice, maxPrice, minYear, maxYear, transmission, fuel_type, location } = filters
     const offset = (page - 1) * limit
 
-    let query = this.supabase.client
+    let query = this.supabase.admin
       .from('vehicles')
       .select(VEHICLE_SELECT, { count: 'exact' })
       .eq('status', 'published')
@@ -62,7 +62,7 @@ export class VehiclesService {
   }
 
   async findOne(id: string) {
-    const { data, error } = await this.supabase.client
+    const { data, error } = await this.supabase.admin
       .from('vehicles')
       .select(VEHICLE_SELECT)
       .eq('id', id)
@@ -99,8 +99,8 @@ export class VehiclesService {
     return data
   }
 
-  async update(id: string, userId: string, dto: Partial<CreateVehicleDto> & { status?: string }) {
-    await this.assertOwner(id, userId)
+  async update(id: string, userId: string, dto: Partial<CreateVehicleDto> & { status?: string }, userRole = 'buyer') {
+    if (userRole !== 'admin') await this.assertOwner(id, userId)
     const { data, error } = await this.supabase.admin
       .from('vehicles')
       .update({ ...dto, updated_at: new Date().toISOString() })
@@ -111,8 +111,8 @@ export class VehiclesService {
     return data
   }
 
-  async remove(id: string, userId: string) {
-    await this.assertOwner(id, userId)
+  async remove(id: string, userId: string, userRole = 'buyer') {
+    if (userRole !== 'admin') await this.assertOwner(id, userId)
     const { error } = await this.supabase.admin.from('vehicles').delete().eq('id', id)
     if (error) throw new Error(error.message)
     return { message: 'Vehículo eliminado' }

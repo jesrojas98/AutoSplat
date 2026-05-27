@@ -15,9 +15,8 @@ const TRANSMISSION_LABEL: Record<string, string> = { manual: 'Manual', automatic
 const STEPS_PUBLISH = [
   'Creando publicación...',
   'Subiendo fotos de galería...',
-  'Subiendo fotos para 3D...',
+  'Subiendo fotos para 3D y activando procesamiento 3D...',
   'Publicando vehículo...',
-  'Iniciando procesamiento 3D...',
 ]
 
 export function StepReview({ form, onPrev }: Props) {
@@ -27,7 +26,7 @@ export function StepReview({ form, onPrev }: Props) {
   const [done, setDone] = useState(false)
   const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const covered3D = form.reconstructionImages.filter((a) => a.file !== null).length
+  const covered3D = form.reconstructionImages.filter((a) => a.file !== null).length + form.freeImages.length
 
   async function handlePublish() {
     setPublishing(true)
@@ -62,12 +61,13 @@ export function StepReview({ form, onPrev }: Props) {
         })
       }
 
-      // 3. Subir fotos de reconstrucción 3D
-      const recon3D = form.reconstructionImages.filter((a) => a.file !== null)
-      if (recon3D.length > 0) {
+      // 3. Subir fotos de reconstrucción 3D (guiadas + libres)
+      const guidedFiles = form.reconstructionImages.filter((a) => a.file !== null).map((a) => a.file!)
+      const allReconFiles = [...guidedFiles, ...form.freeImages]
+      if (allReconFiles.length > 0) {
         setPublishStep(2)
         const fd = new FormData()
-        recon3D.forEach((a) => fd.append('images', a.file!))
+        allReconFiles.forEach((f) => fd.append('images', f))
         await api.post(`/upload/vehicles/${vehicle.id}/reconstruction`, fd, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
@@ -76,12 +76,6 @@ export function StepReview({ form, onPrev }: Props) {
       // 4. Publicar vehículo
       setPublishStep(3)
       await api.patch(`/vehicles/${vehicle.id}/publish`)
-
-      // 5. Crear job 3D si hay suficientes fotos
-      if (covered3D >= 24) {
-        setPublishStep(4)
-        await api.post('/jobs', { vehicleId: vehicle.id, inputImagesCount: covered3D })
-      }
 
       setDone(true)
     } catch (err: any) {

@@ -137,6 +137,26 @@
     line-height: 1.4;
     letter-spacing: 0.02em;
   }
+
+  .brand-logo-dark,
+  .brand-logo-light {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: opacity 0.2s ease;
+  }
+
+  .brand-logo-dark {
+    opacity: 1;
+    transform: scale(0.82);
+    transform-origin: center;
+  }
+
+  .brand-logo-light {
+    opacity: 0;
+  }
 }
 
 /* ── Modo claro — tokens que sobreescriben los dark ───────── */
@@ -204,6 +224,14 @@ html.light .active-glow {
 
 html.light .text-glow {
   text-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+}
+
+html.light .brand-logo-dark {
+  opacity: 0;
+}
+
+html.light .brand-logo-light {
+  opacity: 1;
 }
 
 /* ── Hero background — modo claro ─────────────────────────── */

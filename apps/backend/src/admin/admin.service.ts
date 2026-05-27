@@ -64,4 +64,17 @@ export class AdminService {
     if (error) throw new NotFoundException('Usuario no encontrado o ya eliminado')
     return { ok: true }
   }
+
+  async listVehicles() {
+    const { data, error } = await this.supabase.admin
+      .from('vehicles')
+      .select(`
+        id, brand, model, year, price, mileage, location, status,
+        has_3d_model, views_count, created_at, seller_id,
+        vehicle_images(id, image_url, thumbnail_url, image_type, sort_order)
+      `)
+      .order('created_at', { ascending: false })
+    if (error) throw new Error(error.message)
+    return data ?? []
+  }
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatPriceNumber, formatMileage } from '@/utils/formatters'
 import type { Vehicle } from '@/services/vehicles.service'
@@ -22,28 +23,66 @@ const FUEL_LABEL: Record<string, string> = {
   hybrid: 'Híbrido',
 }
 
-function getThumbnail(vehicle: Vehicle): string {
-  const thumb = vehicle.vehicle_images?.find((i) => i.image_type === 'thumbnail')
-  const first = vehicle.vehicle_images?.[0]
-  return thumb?.image_url ?? first?.image_url ?? 'https://images.unsplash.com/photo-1503736334956-4c8f8e4dc1d4?w=800&q=80'
+function getGalleryImages(vehicle: Vehicle): string[] {
+  const imgs = vehicle.vehicle_images ?? []
+  const gallery = imgs
+    .filter((i) => i.image_type !== 'reconstruction')
+    .sort((a, b) => a.sort_order - b.sort_order)
+  return gallery.map((i) => i.image_url)
 }
 
 export function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
-  const imageUrl = getThumbnail(vehicle)
+  const [imgIdx, setImgIdx] = useState(0)
+  const images = getGalleryImages(vehicle)
+  const hasMultiple = images.length > 1
+
+  function prev(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    setImgIdx((i) => (i - 1 + images.length) % images.length)
+  }
+  function next(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    setImgIdx((i) => (i + 1) % images.length)
+  }
 
   return (
     <Link to={`/vehicles/${vehicle.id}`} className="group block">
       <div className="glass-card rounded-xl overflow-hidden h-full flex flex-col transition-all duration-300 hover:border-[var(--color-primary)]/50">
-        <div className="aspect-[4/3] relative overflow-hidden">
-          <img
-            src={imageUrl}
-            alt={`${vehicle.brand} ${vehicle.model}`}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+        <div className="aspect-[4/3] relative overflow-hidden group/img">
+          {images.length > 0 ? (
+            <img
+              src={images[imgIdx]}
+              alt={`${vehicle.brand} ${vehicle.model}`}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-[var(--color-surface-container-high)]">
+              <span className="material-symbols-outlined text-[var(--color-outline)]" style={{ fontSize: 56 }}>directions_car</span>
+            </div>
+          )}
           {vehicle.has_3d_model && (
-            <span className="absolute top-4 left-4 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-2 py-1 rounded label-caps text-[10px] font-bold">
+            <span className="absolute top-4 left-4 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-2 py-1 rounded label-caps text-[10px] font-bold z-10">
               VISTA 3D
             </span>
+          )}
+          {hasMultiple && (
+            <>
+              <button onClick={prev}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 opacity-0 -translate-x-2 group-hover/img:opacity-100 group-hover/img:translate-x-0 transition-all duration-200 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-[var(--color-primary-container)] hover:scale-110">
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_left</span>
+              </button>
+              <button onClick={next}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 opacity-0 translate-x-2 group-hover/img:opacity-100 group-hover/img:translate-x-0 transition-all duration-200 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-[var(--color-primary-container)] hover:scale-110">
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_right</span>
+              </button>
+              <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 flex gap-1 opacity-0 group-hover/img:opacity-100 transition-opacity duration-200">
+                {images.map((_, i) => (
+                  <button key={i} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setImgIdx(i) }}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${i === imgIdx ? 'w-4 bg-[var(--color-primary)]' : 'w-1.5 bg-white/50 hover:bg-white/80'}`}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
 

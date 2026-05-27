@@ -98,10 +98,19 @@ export function Navbar() {
         <div className="flex items-center gap-8">
           <NavLink
             to="/"
-            className="text-2xl font-bold tracking-tighter text-[var(--color-on-surface)]"
-            style={{ fontFamily: 'var(--font-headline)' }}
+            className="relative flex items-center shrink-0 h-11 w-[190px] sm:w-[230px]"
+            aria-label="AutoSplat"
           >
-            AutoSplat
+            <img
+              src="/brand/autosplat-logo-dark-transparent.png"
+              alt="AutoSplat"
+              className="brand-logo-dark h-full w-full"
+            />
+            <img
+              src="/brand/autosplat-logo-light-transparent.png"
+              alt="AutoSplat"
+              className="brand-logo-light h-full w-full"
+            />
           </NavLink>
 
           <nav className="hidden md:flex items-center gap-6">
@@ -250,7 +259,7 @@ export function Navbar() {
 
                   <div className="py-1">
                     {[
-                      { to: '/dashboard', icon: 'dashboard', label: 'Mi cuenta' },
+                      { to: '/dashboard', icon: 'directions_car', label: 'Mis publicaciones' },
                       { to: '/dashboard?tab=mensajes', icon: 'chat_bubble', label: 'Mensajes' },
                       ...(isSeller ? [{ to: '/publish', icon: 'add_circle', label: 'Publicar vehículo' }] : []),
                       { to: '/dashboard?tab=favoritos', icon: 'favorite', label: 'Favoritos' },

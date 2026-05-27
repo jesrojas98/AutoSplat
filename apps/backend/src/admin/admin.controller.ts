@@ -13,6 +13,11 @@ export class AdminController {
     return this.admin.listUsers()
   }
 
+  @Get('vehicles')
+  listVehicles() {
+    return this.admin.listVehicles()
+  }
+
   @Patch('users/:id/role')
   updateRole(
     @Param('id') id: string,

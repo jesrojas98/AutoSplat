@@ -47,12 +47,38 @@ function normalizeSearch(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
+function makeWordmarkLogo(brand: string, color = '#111827') {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
+      <rect width="320" height="92" rx="14" fill="white"/>
+      <text x="160" y="58" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800" letter-spacing="2" fill="${color}">${brand}</text>
+    </svg>
+  `
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
+function getManualWordmarkLogo(brand: string) {
+  const wordmarks: Record<string, string> = {
+    Deepal: makeWordmarkLogo('DEEPAL', '#111827'),
+    DFSK: makeWordmarkLogo('DFSK', '#d71920'),
+    Soueast: makeWordmarkLogo('SOUEAST', '#1f2937'),
+    SWM: makeWordmarkLogo('SWM', '#d71920'),
+  }
+
+  return wordmarks[brand] ?? null
+}
+
 function getBrandLogoUrls(brand: string) {
   const brandInfo = VEHICLE_CATALOG.find((item) => item.brand === brand)
+  const manualWordmark = getManualWordmarkLogo(brand)
+  const preferManualWordmark = brand === 'Deepal' || brand === 'Soueast' || brand === 'SWM'
   const candidates = [
+    preferManualWordmark ? manualWordmark : null,
     ...(brandInfo?.logoUrls ?? []),
     brandInfo?.logoUrl,
     brandInfo?.logoSlug ? `https://cdn.jsdelivr.net/npm/simple-icons/icons/${brandInfo.logoSlug}.svg` : null,
+    manualWordmark,
     brandInfo?.logoDomain ? `https://logo.clearbit.com/${brandInfo.logoDomain}` : null,
   ]
 
@@ -61,8 +87,8 @@ function getBrandLogoUrls(brand: string) {
 
 function BrandFallback({ brand }: { brand: string }) {
   return (
-    <span className="w-11 h-7 rounded-lg bg-[var(--color-primary)]/10 border border-[var(--color-outline-variant)]/20 flex items-center justify-center label-caps text-[9px] text-[var(--color-primary)] shrink-0">
-      {brand.slice(0, 2).toUpperCase()}
+    <span className="w-16 h-7 rounded-lg bg-[var(--color-primary)]/10 border border-[var(--color-outline-variant)]/20 flex items-center justify-center label-caps text-[8px] text-[var(--color-primary)] shrink-0 px-1">
+      <span className="truncate">{brand.toUpperCase()}</span>
     </span>
   )
 }
@@ -79,13 +105,13 @@ function BrandLogo({ brand }: { brand: string }) {
   if (!brand || !logoUrl) return <BrandFallback brand={brand || '--'} />
 
   return (
-    <span className="w-11 h-7 rounded-lg bg-white border border-[var(--color-outline-variant)]/30 flex items-center justify-center shrink-0 overflow-hidden">
+    <span className="w-16 h-7 rounded-lg bg-white border border-[var(--color-outline-variant)]/30 flex items-center justify-center shrink-0 overflow-hidden">
       <img
         src={logoUrl}
         alt=""
         loading="lazy"
         onError={() => setCandidateIndex((current) => current + 1)}
-        className="w-9 h-5 object-contain"
+        className="w-14 h-5 object-contain"
       />
     </span>
   )

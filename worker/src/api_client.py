@@ -1,15 +1,32 @@
 """
-Llamadas HTTP al backend NestJS para reportar progreso y completar jobs.
-Los endpoints /jobs/:id/progress y /jobs/:id/complete no requieren autenticación.
+Reporta progreso y completa jobs escribiendo directamente a Supabase via REST.
 """
 import logging
+from datetime import datetime, timezone
+
 import requests
 
 from config import Config
 
 logger = logging.getLogger(__name__)
 
-_BASE = Config.BACKEND_URL.rstrip("/")
+_HEADERS = None
+
+
+def _headers() -> dict:
+    global _HEADERS
+    if _HEADERS is None:
+        _HEADERS = {
+            "apikey": Config.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {Config.SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        }
+    return _HEADERS
+
+
+def _url(table: str) -> str:
+    return f"{Config.SUPABASE_URL}/rest/v1/{table}"
 
 
 def report_progress(
@@ -20,7 +37,7 @@ def report_progress(
     current_step: str,
     error_message: str = None,
 ) -> None:
-    """Actualiza el progreso del job en el backend NestJS."""
+    """Actualiza el progreso del job directamente en Supabase."""
     payload = {
         "status": status,
         "progress": progress,
@@ -28,18 +45,17 @@ def report_progress(
         "worker_id": Config.WORKER_ID,
     }
     if error_message:
-        payload["error_message"] = error_message
+        payload["error_message"] = error_message[:1000]
 
     try:
-        res = requests.patch(
-            f"{_BASE}/jobs/{job_id}/progress",
+        r = requests.patch(
+            f"{_url('processing_jobs')}?id=eq.{job_id}",
+            headers=_headers(),
             json=payload,
-            timeout=10,
         )
-        res.raise_for_status()
+        r.raise_for_status()
     except Exception as exc:
-        # El progreso fallido no debe detener el pipeline
-        logger.warning("No se pudo reportar progreso al backend: %s", exc)
+        logger.warning("No se pudo reportar progreso: %s", exc)
 
 
 def complete_job(
@@ -50,19 +66,46 @@ def complete_job(
     num_gaussians: int = None,
     processing_time_seconds: int = None,
 ) -> None:
-    """Marca el job como completado con los datos del modelo final."""
-    payload = {"model_url": model_url}
-    if preview_image_url:
-        payload["preview_image_url"] = preview_image_url
-    if num_gaussians is not None:
-        payload["num_gaussians"] = num_gaussians
-    if processing_time_seconds is not None:
-        payload["processing_time_seconds"] = processing_time_seconds
+    """Marca el job como completado y actualiza vehicle_3d_models en Supabase."""
+    now = datetime.now(timezone.utc).isoformat()
 
-    res = requests.patch(
-        f"{_BASE}/jobs/{job_id}/complete",
-        json=payload,
-        timeout=10,
+    # Obtener model_id del job
+    r = requests.get(
+        f"{_url('processing_jobs')}?id=eq.{job_id}&select=model_id",
+        headers=_headers(),
     )
-    res.raise_for_status()
-    logger.info("Job %s marcado como completado en el backend.", job_id)
+    r.raise_for_status()
+    rows = r.json()
+    model_id = rows[0].get("model_id") if rows else None
+
+    if model_id:
+        model_payload = {
+            "status": "completed",
+            "model_url": model_url,
+            "completed_at": now,
+        }
+        if preview_image_url:
+            model_payload["preview_image_url"] = preview_image_url
+        if num_gaussians is not None:
+            model_payload["num_gaussians"] = num_gaussians
+        if processing_time_seconds is not None:
+            model_payload["processing_time_seconds"] = processing_time_seconds
+
+        requests.patch(
+            f"{_url('vehicle_3d_models')}?id=eq.{model_id}",
+            headers=_headers(),
+            json=model_payload,
+        ).raise_for_status()
+
+    requests.patch(
+        f"{_url('processing_jobs')}?id=eq.{job_id}",
+        headers=_headers(),
+        json={
+            "status": "completed",
+            "progress": 100,
+            "current_step": "completed",
+            "finished_at": now,
+        },
+    ).raise_for_status()
+
+    logger.info("Job %s marcado como completado en Supabase.", job_id)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { formatPriceNumber } from '@/utils/formatters'
 import { vehiclesService, type Vehicle } from '@/services/vehicles.service'
@@ -17,6 +17,7 @@ export function VehicleDetail() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeImg, setActiveImg] = useState(0)
+  const thumbStripRef = useRef<HTMLDivElement>(null)
   const [saved, setSaved] = useState(false)
   const [savingFav, setSavingFav] = useState(false)
   const [message, setMessage] = useState('')
@@ -30,6 +31,14 @@ export function VehicleDetail() {
       .catch(() => setLoading(false))
     if (user) favoritesService.isSaved(id).then((r) => setSaved(r.saved))
   }, [id, user])
+
+  useEffect(() => {
+    const strip = thumbStripRef.current
+    if (!strip) return
+    const thumb = strip.children[activeImg] as HTMLElement | undefined
+    if (!thumb) return
+    thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [activeImg])
 
   async function toggleFavorite() {
     if (!user) { navigate('/login'); return }
@@ -65,9 +74,10 @@ export function VehicleDetail() {
     </div>
   )
 
-  const images = vehicle.vehicle_images
-    ?.filter((i) => i.image_type !== 'reconstruction')
-    .sort((a, b) => a.sort_order - b.sort_order) ?? []
+  const allImages = vehicle.vehicle_images?.sort((a, b) => a.sort_order - b.sort_order) ?? []
+  const images = allImages.filter((i) => i.image_type !== 'reconstruction').length > 0
+    ? allImages.filter((i) => i.image_type !== 'reconstruction')
+    : allImages
 
   const specs = [
     vehicle.transmission && { label: 'TRANSMISIÓN', value: TRANSMISSION_LABEL[vehicle.transmission] ?? vehicle.transmission, icon: 'settings' },
@@ -92,48 +102,97 @@ export function VehicleDetail() {
 
         {/* Galería */}
         <div className="flex flex-col gap-4">
-          <div className="aspect-[16/10] rounded-xl overflow-hidden relative bg-[var(--color-surface-container-high)]">
+          <div className="aspect-[16/10] rounded-xl overflow-hidden relative bg-[var(--color-surface-container-high)] group/gallery">
             {images[activeImg] ? (
-              <img src={images[activeImg].image_url} alt={`${vehicle.brand} ${vehicle.model}`} className="w-full h-full object-cover" />
+              <img src={images[activeImg].image_url} alt={`${vehicle.brand} ${vehicle.model}`} className="w-full h-full object-cover transition-opacity duration-300" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <span className="material-symbols-outlined text-[var(--color-outline)]" style={{ fontSize: 64 }}>directions_car</span>
               </div>
             )}
             {vehicle.has_3d_model && (
-              <div className="absolute top-4 left-4 flex items-center gap-2 glass-card px-3 py-2 rounded-lg">
+              <div className="absolute top-4 left-4 flex items-center gap-2 glass-card px-3 py-2 rounded-lg z-10">
                 <span className="material-symbols-outlined text-[var(--color-primary)] text-base">view_in_ar</span>
                 <span className="label-caps text-[var(--color-primary)] text-[10px]">VISTA 3D DISPONIBLE</span>
               </div>
             )}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={() => setActiveImg((i) => (i - 1 + images.length) % images.length)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-10 opacity-0 -translate-x-3 group-hover/gallery:opacity-100 group-hover/gallery:translate-x-0 transition-all duration-250 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:bg-[var(--color-primary-container)] hover:border-[var(--color-primary)]/40 hover:scale-110 active:scale-95">
+                  <span className="material-symbols-outlined" style={{ fontSize: 22 }}>chevron_left</span>
+                </button>
+                <button
+                  onClick={() => setActiveImg((i) => (i + 1) % images.length)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 opacity-0 translate-x-3 group-hover/gallery:opacity-100 group-hover/gallery:translate-x-0 transition-all duration-250 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:bg-[var(--color-primary-container)] hover:border-[var(--color-primary)]/40 hover:scale-110 active:scale-95">
+                  <span className="material-symbols-outlined" style={{ fontSize: 22 }}>chevron_right</span>
+                </button>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-250">
+                  {images.map((_, i) => (
+                    <button key={i} onClick={() => setActiveImg(i)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${i === activeImg ? 'w-5 bg-[var(--color-primary)]' : 'w-1.5 bg-white/40 hover:bg-white/70'}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {images.length > 1 && (
-            <div className="flex gap-3 overflow-x-auto pb-1">
+            <div
+              ref={thumbStripRef}
+              className="flex gap-2 overflow-x-auto py-2 px-2"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--color-outline-variant) transparent',
+              }}
+            >
               {images.map((img, i) => (
-                <button key={img.id} onClick={() => setActiveImg(i)}
-                  className={`flex-shrink-0 w-24 aspect-[4/3] rounded-lg overflow-hidden border-2 transition-colors ${i === activeImg ? 'border-[var(--color-primary)]' : 'border-[var(--color-outline-variant)]/30 hover:border-[var(--color-primary)]/50'}`}>
+                <button
+                  key={img.id}
+                  onClick={() => setActiveImg(i)}
+                  className={`relative flex-shrink-0 w-20 aspect-[4/3] rounded-lg overflow-hidden transition-all duration-200 outline-none
+                    ${i === activeImg
+                      ? 'ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-background)] scale-105 shadow-lg'
+                      : 'opacity-50 hover:opacity-80 hover:scale-105'
+                    }`}
+                >
                   <img src={img.thumbnail_url ?? img.image_url} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
           )}
 
-          {vehicle.has_3d_model && (
-            <div className="glass-card rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-outline-variant)]/30">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
-                  <span className="label-caps text-[var(--color-primary)] text-[10px]">VISTA 3D EN VIVO</span>
+          {vehicle.has_3d_model && (() => {
+            const model = vehicle.vehicle_3d_models?.[0]
+            const modelUrl = model?.status === 'completed' ? model.model_url : null
+            return (
+              <div className="glass-card rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-outline-variant)]/30">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
+                    <span className="label-caps text-[var(--color-primary)] text-[10px]">VISTA 3D EN VIVO</span>
+                  </div>
+                  <span className="mono-spec text-[var(--color-on-surface-variant)] text-xs">Gaussian Splatting</span>
                 </div>
-                <span className="mono-spec text-[var(--color-on-surface-variant)] text-xs">Gaussian Splatting</span>
+                {modelUrl ? (
+                  <iframe
+                    src={`/splat-viewer.html?url=${encodeURIComponent(modelUrl)}`}
+                    className="w-full border-0"
+                    style={{ height: 360 }}
+                    title="Visor 3D Gaussian Splatting"
+                    allow="cross-origin-isolated"
+                  />
+                ) : (
+                  <div className="h-40 flex flex-col items-center justify-center gap-3 bg-[var(--color-surface-container-lowest)]">
+                    <span className="material-symbols-outlined text-[var(--color-outline)]" style={{ fontSize: 40, fontVariationSettings: "'FILL' 1" }}>hourglass_empty</span>
+                    <p className="label-caps text-[var(--color-on-surface-variant)] text-xs">Modelo 3D en procesamiento…</p>
+                  </div>
+                )}
               </div>
-              <div className="h-64 flex flex-col items-center justify-center gap-3 bg-[var(--color-surface-container-lowest)]">
-                <span className="material-symbols-outlined text-[var(--color-primary)]" style={{ fontSize: 48, fontVariationSettings: "'FILL' 1" }}>blur_on</span>
-                <p className="label-caps text-[var(--color-on-surface-variant)] text-xs">Visor 3D — próximamente</p>
-              </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
 
         {/* Info */}

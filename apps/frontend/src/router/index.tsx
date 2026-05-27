@@ -6,6 +6,7 @@ import { VehicleDetail } from '@/pages/VehicleDetail'
 import { Login } from '@/pages/Login'
 import { Register } from '@/pages/Register'
 import { PublishVehicle } from '@/pages/PublishVehicle'
+import { EditVehicle } from '@/pages/EditVehicle'
 import { Dashboard } from '@/pages/Dashboard'
 import { Admin } from '@/pages/Admin'
 import { AuthCallback } from '@/pages/AuthCallback'
@@ -26,6 +27,7 @@ export function AppRouter() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/publish" element={<SellerRoute><PublishVehicle /></SellerRoute>} />
+        <Route path="/vehicles/:id/edit" element={<EditVehicle />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
         <Route path="/privacy" element={<LegalPage type="privacy" />} />

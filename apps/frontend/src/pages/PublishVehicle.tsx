@@ -20,6 +20,7 @@ export type VehicleForm = {
   description: string
   galleryImages: File[]
   reconstructionImages: { angle: string; label: string; file: File | null }[]
+  freeImages: File[]
 }
 
 const INITIAL_FORM: VehicleForm = {
@@ -28,6 +29,7 @@ const INITIAL_FORM: VehicleForm = {
   doors: '', location: '', region: '', description: '',
   galleryImages: [],
   reconstructionImages: [],
+  freeImages: [],
 }
 
 const STEPS = [

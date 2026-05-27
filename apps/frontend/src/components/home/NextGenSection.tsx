@@ -1,3 +1,5 @@
+import '@google/model-viewer'
+
 export function NextGenSection() {
   return (
     <section className="py-24 px-[var(--spacing-gutter)] max-w-[var(--spacing-max-width)] mx-auto">
@@ -60,55 +62,67 @@ export function NextGenSection() {
           </div>
         </div>
 
-        {/* Visual circular */}
-        <div className="relative glass-card aspect-square rounded-full overflow-hidden p-8 flex items-center justify-center"
-          style={{ border: '2px solid rgba(180,197,255,0.15)' }}
-        >
-          {/* Imagen (grayscale → color on hover) */}
-          <div className="absolute inset-0 overflow-hidden rounded-full">
-            <img
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-UiOYVfYsxa_U5h579FqtHbYi883SBS29N97_zlRHywkiGkcltvbxzp7e3c1qFajYANIjEeCRQIUKDGw9OG-ju34jsezqbcIBc5hpi3rg4NZKCNfRC6bVU1oVpGXk7VSo7KWRzNJtSQcZzkANXlN4_LvZr4dKpnbhHWkYdUbw8_-a9hwV1aWO7PFDdXYcqr4z6PkTwZj1ZIy4efMG7NSD1QJWT3Cqv9nJAmY4o7hcZD34cj3_oLsmMujPf4yOovzSd_PqJUL4P0Q"
-              alt="Motor de alto rendimiento con overlays holográficos"
-              className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700 scale-110"
-            />
-          </div>
-
-          {/* Gradient overlay */}
+        {/* Visor 3D */}
+        <div className="flex flex-col gap-3">
           <div
-            className="absolute inset-0 rounded-full pointer-events-none"
+            className="relative rounded-2xl overflow-hidden glass-card"
             style={{
-              background: 'linear-gradient(135deg, rgba(37,99,235,0.35) 0%, transparent 60%)',
+              aspectRatio: '1 / 1',
+              border: '1px solid rgba(180,197,255,0.12)',
+              boxShadow: '0 0 60px rgba(37,99,235,0.1)',
             }}
-          />
-
-          {/* Badge central */}
-          <div
-            className="relative z-10 flex flex-col items-center justify-center glass-card rounded-2xl px-6 py-4 text-center"
-            style={{ border: '1px solid rgba(180,197,255,0.25)' }}
           >
-            <span
-              className="material-symbols-outlined text-[var(--color-primary)] mb-1"
-              style={{ fontSize: 36, fontVariationSettings: "'FILL' 1" }}
+            <model-viewer
+              src="/models/engine.glb"
+              alt="Motor V8 Chevrolet Corvette"
+              auto-rotate
+              camera-controls
+              shadow-intensity="3"
+              exposure="0.45"
+              environment-image="legacy"
+              rotation-per-second="18deg"
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'transparent',
+                '--poster-color': 'transparent',
+                filter: 'brightness(0.60) contrast(1.4) saturate(0.6) grayscale(0.3)',
+              } as React.CSSProperties}
             >
-              blur_on
-            </span>
-            <p
-              className="text-[var(--color-primary)] label-caps"
-              style={{ fontSize: 11, letterSpacing: '0.12em' }}
+              {/* Slot de carga mientras no hay modelo */}
+              <div slot="poster" className="w-full h-full flex flex-col items-center justify-center gap-4">
+                <span
+                  className="material-symbols-outlined text-[var(--color-primary)] animate-spin"
+                  style={{ fontSize: 48 }}
+                >
+                  progress_activity
+                </span>
+                <p className="label-caps text-[var(--color-on-surface-variant)] text-xs">
+                  CARGANDO MODELO 3D…
+                </p>
+              </div>
+            </model-viewer>
+
+            {/* Badge */}
+            <div
+              className="absolute bottom-4 left-4 flex items-center gap-2 glass-card px-3 py-2 rounded-xl pointer-events-none"
+              style={{ border: '1px solid rgba(180,197,255,0.2)' }}
             >
-              GAUSSIAN SPLATTING
-            </p>
+              <span
+                className="material-symbols-outlined text-[var(--color-primary)]"
+                style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }}
+              >
+                blur_on
+              </span>
+              <span className="label-caps text-[var(--color-primary)]" style={{ fontSize: 10, letterSpacing: '0.1em' }}>
+                MODELO 3D INTERACTIVO
+              </span>
+            </div>
           </div>
 
-          {/* Anillo decorativo pulsante */}
-          <div
-            className="absolute inset-4 rounded-full border border-[var(--color-primary)]/15 animate-pulse pointer-events-none"
-            style={{ animationDuration: '3s' }}
-          />
-          <div
-            className="absolute inset-10 rounded-full border border-[var(--color-primary)]/10 animate-pulse pointer-events-none"
-            style={{ animationDuration: '4s', animationDelay: '1s' }}
-          />
+          <p className="text-center label-caps text-[var(--color-on-surface-variant)] text-[10px] tracking-widest">
+            CHEVROLET CORVETTE V8 · ARRASTRA PARA ROTAR · SCROLL PARA ZOOM
+          </p>
         </div>
 
       </div>

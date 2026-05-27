@@ -11,12 +11,22 @@ export function Footer() {
     <footer className="bg-[var(--color-surface-container-lowest)] border-t border-[var(--color-outline-variant)]/20">
       <div className="flex flex-col md:flex-row justify-between items-center py-12 px-[var(--spacing-gutter)] max-w-[var(--spacing-max-width)] mx-auto w-full gap-8">
         <div>
-          <span
-            className="text-2xl font-bold text-[var(--color-on-surface)]"
-            style={{ fontFamily: 'var(--font-headline)' }}
+          <Link
+            to="/"
+            className="relative inline-flex items-center h-12 w-[260px]"
+            aria-label="AutoSplat"
           >
-            AutoSplat
-          </span>
+            <img
+              src="/brand/autosplat-logo-dark-transparent.png"
+              alt="AutoSplat"
+              className="brand-logo-dark h-full w-full"
+            />
+            <img
+              src="/brand/autosplat-logo-light-transparent.png"
+              alt="AutoSplat"
+              className="brand-logo-light h-full w-full"
+            />
+          </Link>
           <p className="text-[var(--color-on-surface-variant)] text-sm mt-2 opacity-60">
             © 2024 AutoSplat Technologies. Compraventa de vehículos con tecnología 3D.
           </p>

@@ -13,6 +13,7 @@ import { UploadModule } from './upload/upload.module'
 import { JobsModule } from './jobs/jobs.module'
 import { NotificationsModule } from './notifications/notifications.module'
 import { AdminModule } from './admin/admin.module'
+import { ModalModule } from './modal/modal.module'
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AdminModule } from './admin/admin.module'
     JobsModule,
     NotificationsModule,
     AdminModule,
+    ModalModule,
   ],
   providers: [
     {
