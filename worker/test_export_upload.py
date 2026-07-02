@@ -8,11 +8,13 @@ Bypassa el entrenamiento (que requiere CUDA) para verificar:
 Uso: python test_export_upload.py <job_id> <vehicle_id>
 """
 import os, sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
+from config import Config
 
 import numpy as np
 from plyfile import PlyData, PlyElement  # type: ignore
@@ -24,7 +26,7 @@ if not JOB_ID or not VEHICLE_ID:
     print("Uso: python test_export_upload.py <job_id> <vehicle_id>")
     sys.exit(1)
 
-WORK_DIR = Path(f"/tmp/autosplat_worker/{JOB_ID}")
+WORK_DIR = Config.WORK_DIR / JOB_ID
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── 1. Generar .ply sintético con 1000 Gaussianos ────────────────────────────
@@ -85,7 +87,7 @@ from steps.upload import upload_model
 # Crear directorio images con una imagen de muestra para el preview
 images_dir = WORK_DIR / "images"
 images_dir.mkdir(exist_ok=True)
-sample = sorted(Path("/tmp/synthetic_car_test").glob("*.jpg"))
+sample = sorted((Path(tempfile.gettempdir()) / "synthetic_car_test").glob("*.jpg"))
 if sample:
     import shutil
     shutil.copy2(sample[len(sample)//2], images_dir / "img_preview.jpg")

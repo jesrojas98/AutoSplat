@@ -5,8 +5,14 @@ import { dirname, join } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-const SUPABASE_URL = 'https://dtzllukpycxjgnxjoopz.supabase.co'
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0emxsdWtweWN4amdueGpvb3B6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODYwNzMxNSwiZXhwIjoyMDk0MTgzMzE1fQ.oGsvdic13Ea5FGXCRzOd9wq-0V2w0LkXlhoSOEGlduQ'
+process.loadEnvFile(join(__dirname, '..', 'apps', 'backend', '.env'))
+
+const SUPABASE_URL = process.env.SUPABASE_URL
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY son requeridas (definir en apps/backend/.env)')
+}
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },

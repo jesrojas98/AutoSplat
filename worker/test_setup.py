@@ -6,6 +6,7 @@ Uso: python test_setup.py
 """
 import os
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 from dotenv import load_dotenv
@@ -27,7 +28,7 @@ def get_admin_user():
     return res.data["id"]
 
 # ── Descargar imágenes de muestra (dataset público pequeño) ───────────────────
-LOCAL_IMAGES_DIR = Path("/tmp/synthetic_car_test")
+LOCAL_IMAGES_DIR = Path(tempfile.gettempdir()) / "synthetic_car_test"
 
 def download_sample_images(dest: Path) -> list[Path]:
     if not LOCAL_IMAGES_DIR.exists() or not list(LOCAL_IMAGES_DIR.glob("*.jpg")):
@@ -87,7 +88,7 @@ def main():
     print(f"Vehículo creado: {vehicle_id}")
 
     # 2. Cargar imágenes de muestra
-    images = download_sample_images(Path("/tmp/synthetic_car_test"))
+    images = download_sample_images(LOCAL_IMAGES_DIR)
 
     if len(images) < 3:
         print("ERROR: No se pudieron descargar suficientes imágenes.")
@@ -132,8 +133,8 @@ def main():
     print(f"  vehicle_id = {vehicle_id}")
     print(f"  job_id     = {job_id}")
     print(f"\nAhora ejecuta el worker:")
-    print(f"  source ~/autosplat-env/bin/activate")
-    print(f"  cd /Users/relke/AutoSplat/worker/src")
+    print(f"  autosplat-env\\Scripts\\activate")
+    print(f"  cd worker/src")
     print(f"  python main.py --once")
 
 if __name__ == "__main__":

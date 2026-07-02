@@ -38,6 +38,7 @@ dist/
 venv/
 env/
 .env/
+worker/autosplat-env/
 
 # Gaussian Splatting / Nerfstudio output
 worker/outputs/

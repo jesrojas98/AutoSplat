@@ -10,6 +10,9 @@ import shutil
 import math
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+from config import Config
+
 JOB_ID = sys.argv[1] if len(sys.argv) > 1 else None
 VEHICLE_ID = sys.argv[2] if len(sys.argv) > 2 else None
 
@@ -17,7 +20,7 @@ if not JOB_ID or not VEHICLE_ID:
     print("Uso: python create_test_transforms.py <job_id> <vehicle_id>")
     sys.exit(1)
 
-WORK_DIR = Path(f"/tmp/autosplat_worker/{JOB_ID}")
+WORK_DIR = Config.WORK_DIR / JOB_ID
 IMAGES_DIR = WORK_DIR / "images"
 PROCESSED_DIR = WORK_DIR / "processed"
 IMAGES_OUT_DIR = PROCESSED_DIR / "images"
@@ -30,11 +33,6 @@ IMAGES_OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Descargar imágenes usando api_client de Supabase
 import os
-import sys
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent / ".env")
 
 from supabase import create_client
 import httpx
