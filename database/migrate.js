@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'fs'
+import { readFileSync, readdirSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
@@ -18,17 +18,45 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-const sql = readFileSync(join(__dirname, 'migrations/001_schema.sql'), 'utf-8')
+// Aplica, en orden, todos los .sql de migrations/ y luego todos los de rls/.
+// Cada carpeta se ordena alfabéticamente — de ahí el prefijo NNN_ en los nombres.
+const SQL_DIRS = ['migrations', 'rls']
 
-// Ejecuta cada statement separado por ;
-const statements = sql
-  .split(';')
-  .map(s => s.trim())
-  .filter(s => s.length > 0 && !s.startsWith('--'))
+function listSqlFiles(dir) {
+  return readdirSync(dir)
+    .filter(f => f.endsWith('.sql'))
+    .sort()
+    .map(f => join(dir, f))
+}
 
-console.log(`Ejecutando ${statements.length} statements...`)
+// Divide por ';' pero respeta bloques $$ ... $$ (funciones plpgsql), que
+// contienen ';' internos y no deben cortarse ahí. 002_notifications.sql y
+// 002_users_policies.sql dependen de esto.
+function splitStatements(sql) {
+  const statements = []
+  let current = ''
+  let inDollarBlock = false
 
-for (const statement of statements) {
+  for (const line of sql.split('\n')) {
+    if (line.trim().startsWith('--')) continue
+    const dollarMatches = line.match(/\$\$/g)
+    if (dollarMatches) {
+      for (let i = 0; i < dollarMatches.length; i++) inDollarBlock = !inDollarBlock
+    }
+    current += line + '\n'
+
+    if (!inDollarBlock && line.trim().endsWith(';')) {
+      const trimmed = current.trim()
+      if (trimmed.length > 0) statements.push(trimmed)
+      current = ''
+    }
+  }
+  const rest = current.trim()
+  if (rest.length > 0) statements.push(rest)
+  return statements
+}
+
+async function runStatement(statement) {
   const { error } = await supabase.rpc('exec_sql', { sql: statement }).single().catch(() => ({ error: null }))
   // Fallback: usar la API REST directamente
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
@@ -45,4 +73,24 @@ for (const statement of statements) {
   }
 }
 
-console.log('✓ Migraciones listas')
+for (const dir of SQL_DIRS) {
+  const files = listSqlFiles(join(__dirname, dir))
+  if (files.length === 0) {
+    console.log(`(${dir}/ no tiene archivos .sql, se omite)`)
+    continue
+  }
+
+  for (const file of files) {
+    const sql = readFileSync(file, 'utf-8')
+    const statements = splitStatements(sql)
+
+    console.log(`${file}: ejecutando ${statements.length} statements...`)
+    for (const statement of statements) {
+      await runStatement(statement)
+    }
+  }
+}
+
+console.log('✓ Migraciones y políticas RLS listas')
+console.log('Nota: este script depende de la función RPC "exec_sql" en el proyecto Supabase.')
+console.log('Si no existe, aplica los archivos de migrations/ y rls/ manualmente en el SQL Editor de Supabase, en el mismo orden.')

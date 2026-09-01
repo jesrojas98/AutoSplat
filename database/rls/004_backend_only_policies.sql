@@ -1,0 +1,10 @@
+-- favorites, messages, notifications, processing_jobs: hoy nada las consulta
+-- con el cliente anon/authenticated — todo pasa por el backend (NestJS) con
+-- SUPABASE_SERVICE_ROLE_KEY, que bypassa RLS.
+--
+-- Sin policies para anon/authenticated, RLS deniega todo por defecto: son
+-- accesibles únicamente vía service_role. Este archivo no crea policies —
+-- documenta la decisión explícitamente para que quede versionada y no se
+-- lea como un olvido. Si en el futuro el frontend necesita leer alguna de
+-- estas tablas directo (p. ej. notificaciones en tiempo real vía Supabase
+-- Realtime), agregar aquí una policy de SELECT acotada a auth.uid().
