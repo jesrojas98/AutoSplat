@@ -56,7 +56,7 @@ describe('VehiclesService', () => {
 
   describe('findAll()', () => {
     it('retorna paginación por defecto (page=1, limit=12)', async () => {
-      supabase.client.from.mockReturnValue(buildChain({ data: [mockVehicle], count: 1 }))
+      supabase.admin.from.mockReturnValue(buildChain({ data: [mockVehicle], count: 1 }))
 
       const result = await service.findAll()
 
@@ -67,7 +67,7 @@ describe('VehiclesService', () => {
     })
 
     it('calcula el total de páginas correctamente', async () => {
-      supabase.client.from.mockReturnValue(buildChain({ data: [], count: 25 }))
+      supabase.admin.from.mockReturnValue(buildChain({ data: [], count: 25 }))
 
       const result = await service.findAll({ limit: 12 })
 
@@ -75,7 +75,7 @@ describe('VehiclesService', () => {
     })
 
     it('retorna array vacío cuando no hay vehículos', async () => {
-      supabase.client.from.mockReturnValue(buildChain({ data: null, count: 0 }))
+      supabase.admin.from.mockReturnValue(buildChain({ data: null, count: 0 }))
 
       const result = await service.findAll()
 
@@ -85,7 +85,7 @@ describe('VehiclesService', () => {
 
     it('aplica filtro de brand cuando se provee', async () => {
       const chain = buildChain({ data: [], count: 0 })
-      supabase.client.from.mockReturnValue(chain)
+      supabase.admin.from.mockReturnValue(chain)
 
       await service.findAll({ brand: 'Toyota' })
 
@@ -94,7 +94,7 @@ describe('VehiclesService', () => {
 
     it('aplica filtro de búsqueda general (brand o model)', async () => {
       const chain = buildChain({ data: [], count: 0 })
-      supabase.client.from.mockReturnValue(chain)
+      supabase.admin.from.mockReturnValue(chain)
 
       await service.findAll({ search: 'corolla' })
 
@@ -103,7 +103,7 @@ describe('VehiclesService', () => {
 
     it('aplica filtro de precio mínimo', async () => {
       const chain = buildChain({ data: [], count: 0 })
-      supabase.client.from.mockReturnValue(chain)
+      supabase.admin.from.mockReturnValue(chain)
 
       await service.findAll({ minPrice: 5000000 })
 
@@ -112,7 +112,7 @@ describe('VehiclesService', () => {
 
     it('aplica filtro de precio máximo', async () => {
       const chain = buildChain({ data: [], count: 0 })
-      supabase.client.from.mockReturnValue(chain)
+      supabase.admin.from.mockReturnValue(chain)
 
       await service.findAll({ maxPrice: 20000000 })
 
@@ -121,7 +121,7 @@ describe('VehiclesService', () => {
 
     it('aplica filtro de año mínimo', async () => {
       const chain = buildChain({ data: [], count: 0 })
-      supabase.client.from.mockReturnValue(chain)
+      supabase.admin.from.mockReturnValue(chain)
 
       await service.findAll({ minYear: 2020 })
 
@@ -130,7 +130,7 @@ describe('VehiclesService', () => {
 
     it('aplica filtro de transmisión', async () => {
       const chain = buildChain({ data: [], count: 0 })
-      supabase.client.from.mockReturnValue(chain)
+      supabase.admin.from.mockReturnValue(chain)
 
       await service.findAll({ transmission: 'automatic' })
 
@@ -139,7 +139,7 @@ describe('VehiclesService', () => {
 
     it('aplica filtro de ubicación', async () => {
       const chain = buildChain({ data: [], count: 0 })
-      supabase.client.from.mockReturnValue(chain)
+      supabase.admin.from.mockReturnValue(chain)
 
       await service.findAll({ location: 'Santiago' })
 
@@ -148,7 +148,7 @@ describe('VehiclesService', () => {
 
     it('filtra solo vehículos published', async () => {
       const chain = buildChain({ data: [], count: 0 })
-      supabase.client.from.mockReturnValue(chain)
+      supabase.admin.from.mockReturnValue(chain)
 
       await service.findAll()
 
@@ -156,7 +156,7 @@ describe('VehiclesService', () => {
     })
 
     it('lanza error cuando Supabase devuelve error', async () => {
-      supabase.client.from.mockReturnValue(
+      supabase.admin.from.mockReturnValue(
         buildChain({ data: null, error: { message: 'connection error' } }),
       )
 
@@ -169,8 +169,9 @@ describe('VehiclesService', () => {
   describe('findOne()', () => {
     it('retorna el vehículo cuando existe', async () => {
       // First call is for the select, second (fire-and-forget) is for view increment
-      supabase.client.from.mockReturnValue(buildChain({ data: mockVehicle }))
-      supabase.admin.from.mockReturnValue(buildChain({ data: mockVehicle }))
+      supabase.admin.from
+        .mockReturnValueOnce(buildChain({ data: mockVehicle }))
+        .mockReturnValueOnce(buildChain({ data: mockVehicle }))
 
       const result = await service.findOne('v1')
 
@@ -178,15 +179,17 @@ describe('VehiclesService', () => {
     })
 
     it('lanza NotFoundException cuando el vehículo no existe', async () => {
-      supabase.client.from.mockReturnValue(buildChain({ data: null, error: { message: 'not found' } }))
+      supabase.admin.from.mockReturnValue(buildChain({ data: null, error: { message: 'not found' } }))
 
       await expect(service.findOne('unknown')).rejects.toThrow(NotFoundException)
     })
 
     it('incrementa views_count de forma asíncrona', async () => {
-      const adminChain = buildChain({ data: { views_count: 6 } })
-      supabase.client.from.mockReturnValue(buildChain({ data: { ...mockVehicle, views_count: 5 } }))
-      supabase.admin.from.mockReturnValue(adminChain)
+      const selectChain = buildChain({ data: { ...mockVehicle, views_count: 5 } })
+      const updateChain = buildChain({ data: { views_count: 6 } })
+      supabase.admin.from
+        .mockReturnValueOnce(selectChain)
+        .mockReturnValueOnce(updateChain)
 
       await service.findOne('v1')
 

@@ -10,7 +10,11 @@ const mockUser = { id: 'user-1', email: 'seller@example.com', role: 'seller' }
 
 const mockVehicle = {
   id: 'v1', brand: 'Toyota', model: 'Corolla', year: 2022,
-  price: 15000000, status: 'published', seller_id: 'user-1',
+  price: 15000000, mileage: 20000, transmission: 'automatic', fuel_type: 'gasoline',
+  body_type: 'sedan', color: 'Blanco', doors: 4, location: 'Santiago', region: 'Metropolitana',
+  description: 'Excelente estado', status: 'published', views_count: 5, has_3d_model: false,
+  created_at: '2026-01-01T00:00:00.000Z', seller_id: 'user-1',
+  vehicle_images: [], vehicle_3d_models: [],
 }
 
 const mockPaginatedResult = {
@@ -39,7 +43,6 @@ describe('VehiclesController', () => {
         },
         Reflector,
         RateLimitGuard,
-        JwtAuthGuard,
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -134,7 +137,7 @@ describe('VehiclesController', () => {
 
       const result = await controller.update('v1', mockUser as any, { price: 20000000 } as any)
 
-      expect(vehiclesService.update).toHaveBeenCalledWith('v1', 'user-1', { price: 20000000 })
+      expect(vehiclesService.update).toHaveBeenCalledWith('v1', 'user-1', { price: 20000000 }, 'seller')
       expect(result).toMatchObject({ price: 20000000 })
     })
 
@@ -167,7 +170,7 @@ describe('VehiclesController', () => {
 
       const result = await controller.remove('v1', mockUser as any)
 
-      expect(vehiclesService.remove).toHaveBeenCalledWith('v1', 'user-1')
+      expect(vehiclesService.remove).toHaveBeenCalledWith('v1', 'user-1', 'seller')
       expect(result).toEqual({ message: 'Vehículo eliminado' })
     })
 
