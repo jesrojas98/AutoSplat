@@ -4,7 +4,6 @@ import { APP_PIPE, APP_GUARD } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
 import { RateLimitGuard } from './common/guards/rate-limit.guard'
 import { SupabaseModule } from './supabase/supabase.module'
-import { AuthModule } from './auth/auth.module'
 import { UsersModule } from './users/users.module'
 import { VehiclesModule } from './vehicles/vehicles.module'
 import { FavoritesModule } from './favorites/favorites.module'
@@ -19,7 +18,6 @@ import { ModalModule } from './modal/modal.module'
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     SupabaseModule,
-    AuthModule,
     UsersModule,
     VehiclesModule,
     FavoritesModule,

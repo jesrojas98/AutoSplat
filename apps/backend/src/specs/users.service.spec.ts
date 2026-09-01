@@ -31,40 +31,6 @@ describe('UsersService', () => {
     service = module.get(UsersService)
   })
 
-  // ── findByEmail ───────────────────────────────────────────────────────────
-
-  describe('findByEmail()', () => {
-    it('retorna el usuario cuando existe', async () => {
-      const user = { id: 'u1', email: 'a@b.com', name: 'Ana', role: 'buyer', avatar_url: null }
-      supabase.admin.from.mockReturnValue(buildChain({ data: user }))
-
-      const result = await service.findByEmail('a@b.com')
-
-      expect(result).toEqual(user)
-    })
-
-    it('retorna null cuando el usuario no existe', async () => {
-      supabase.admin.from.mockReturnValue(buildChain({ data: null }))
-
-      const result = await service.findByEmail('noexiste@b.com')
-
-      expect(result).toBeNull()
-    })
-  })
-
-  // ── findByEmailWithPassword ───────────────────────────────────────────────
-
-  describe('findByEmailWithPassword()', () => {
-    it('retorna el usuario con password_hash', async () => {
-      const user = { id: 'u1', email: 'a@b.com', password_hash: 'hash123' }
-      supabase.admin.from.mockReturnValue(buildChain({ data: user }))
-
-      const result = await service.findByEmailWithPassword('a@b.com')
-
-      expect(result).toHaveProperty('password_hash', 'hash123')
-    })
-  })
-
   // ── findById ──────────────────────────────────────────────────────────────
 
   describe('findById()', () => {
@@ -87,40 +53,6 @@ describe('UsersService', () => {
       supabase.admin.from.mockReturnValue(buildChain({ data: null, error: { message: 'not found' } }))
 
       await expect(service.findById('unknown')).rejects.toThrow('Usuario no encontrado')
-    })
-  })
-
-  // ── create ────────────────────────────────────────────────────────────────
-
-  describe('create()', () => {
-    it('crea un usuario y lo retorna', async () => {
-      const newUser = { id: 'u2', name: 'Bob', email: 'b@c.com', role: 'seller', avatar_url: null }
-      supabase.admin.from.mockReturnValue(buildChain({ data: newUser }))
-
-      const result = await service.create({ name: 'Bob', email: 'b@c.com', password: 'hashedpw' })
-
-      expect(result).toEqual(newUser)
-    })
-
-    it('asigna rol seller por defecto', async () => {
-      const chain = buildChain({ data: { id: 'u2', role: 'seller' } })
-      supabase.admin.from.mockReturnValue(chain)
-
-      await service.create({ name: 'Bob', email: 'b@c.com', password: 'hashedpw' })
-
-      expect(chain.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'seller' }),
-      )
-    })
-
-    it('lanza un error si Supabase devuelve error', async () => {
-      supabase.admin.from.mockReturnValue(
-        buildChain({ data: null, error: { message: 'duplicate key' } }),
-      )
-
-      await expect(
-        service.create({ name: 'Bob', email: 'b@c.com', password: 'pw' }),
-      ).rejects.toThrow('duplicate key')
     })
   })
 
