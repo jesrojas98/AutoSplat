@@ -16,7 +16,6 @@ class Config:
     SUPABASE_URL: str = _require("SUPABASE_URL")
     SUPABASE_SERVICE_ROLE_KEY: str = _require("SUPABASE_SERVICE_ROLE_KEY")
 
-    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:3000")
     WORKER_ID: str = os.getenv("WORKER_ID", "local-worker-1")
 
     WORK_DIR: Path = Path(os.getenv("WORK_DIR", "/tmp/autosplat_worker"))

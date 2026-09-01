@@ -64,46 +64,4 @@ export class JobsService {
     if (error || !data) throw new NotFoundException('Job no encontrado')
     return data
   }
-
-  // Llamado por el worker Python para actualizar progreso
-  async updateProgress(jobId: string, dto: {
-    status?: string
-    progress?: number
-    current_step?: string
-    error_message?: string
-    worker_id?: string
-  }) {
-    const updates: any = { ...dto }
-    if (dto.status === 'processing' && !updates.started_at) updates.started_at = new Date().toISOString()
-    if (dto.status === 'completed' || dto.status === 'failed') updates.finished_at = new Date().toISOString()
-
-    const { data, error } = await this.supabase.admin
-      .from('processing_jobs')
-      .update(updates)
-      .eq('id', jobId)
-      .select()
-      .single()
-    if (error) throw new Error(error.message)
-    return data
-  }
-
-  async completeWithModel(jobId: string, modelData: {
-    model_url: string
-    preview_image_url?: string
-    num_gaussians?: number
-    processing_time_seconds?: number
-  }) {
-    const job = await this.getById(jobId)
-
-    await this.supabase.admin
-      .from('vehicle_3d_models')
-      .update({
-        status: 'completed',
-        ...modelData,
-        completed_at: new Date().toISOString(),
-      })
-      .eq('id', (job as any).vehicle_3d_models?.id)
-
-    return this.updateProgress(jobId, { status: 'completed', progress: 100, current_step: 'completed' })
-  }
 }
