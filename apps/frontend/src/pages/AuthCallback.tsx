@@ -43,6 +43,24 @@ export function AuthCallback() {
       // INITIAL_SESSION sin sesión = tokens aún procesándose → esperar
     })
 
+    // Algunos navegadores móviles no completan la detección automática de la URL;
+    // si a los 3s no hay sesión, se intenta con los tokens del hash a mano.
+    let manualError: string | null = null
+    const manual = setTimeout(async () => {
+      if (done) return
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      const access_token = hash.get('access_token')
+      const refresh_token = hash.get('refresh_token')
+      if (!access_token || !refresh_token) return
+      try {
+        const { data, error } = await supabase.auth.setSession({ access_token, refresh_token })
+        if (error) manualError = error.message
+        else if (data.session?.user) syncAndRedirect(data.session.user)
+      } catch (e) {
+        manualError = e instanceof Error ? e.message : String(e)
+      }
+    }, 3_000)
+
     // Fallback: si en 10 segundos no llega sesión, mostrar por qué en vez de volver al login en silencio
     const timeout = setTimeout(async () => {
       if (done) return
@@ -57,6 +75,8 @@ export function AuthCallback() {
         error ? `Supabase: ${error.message}` : null,
         !params.get('access_token') && !params.get('code') && !providerError ? 'La URL de retorno no trae tokens.' : null,
         skew !== null && Math.abs(skew) > 60 ? `El reloj del dispositivo difiere ${skew}s del servidor.` : null,
+        manualError ? `Intento manual: ${manualError}` : null,
+        `[hash:${window.location.hash ? 'sí' : 'no'} token:${params.get('access_token') ? 'sí' : 'no'} code:${params.get('code') ? 'sí' : 'no'} ls:${(() => { try { localStorage.setItem('t', '1'); localStorage.removeItem('t'); return 'ok' } catch { return 'bloqueado' } })()}]`,
         data.session ? 'Hay sesión pero no se pudo completar el registro.' : null,
       ].filter(Boolean).join(' ') || 'No llegó la sesión.')
     }, 10_000)
@@ -64,6 +84,7 @@ export function AuthCallback() {
     return () => {
       subscription.unsubscribe()
       clearTimeout(timeout)
+      clearTimeout(manual)
     }
   }, [navigate])
 
