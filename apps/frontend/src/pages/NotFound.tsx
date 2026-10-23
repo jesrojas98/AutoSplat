@@ -5,7 +5,7 @@ export function NotFound() {
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-[var(--spacing-gutter)] text-center">
       <p className="label-caps text-[var(--color-primary)] mb-4">ERROR 404</p>
       <h1
-        style={{ fontFamily: 'var(--font-display)', fontSize: 64, fontWeight: 700, lineHeight: 1.1 }}
+        style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(40px, 13vw, 64px)', fontWeight: 700, lineHeight: 1.1 }}
         className="mb-6"
       >
         Página no encontrada.

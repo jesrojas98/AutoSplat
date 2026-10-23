@@ -64,7 +64,7 @@ export function LegalPage({ type }: LegalPageProps) {
   return (
     <div className="px-[var(--spacing-gutter)] py-12 max-w-3xl mx-auto">
       <p className="label-caps text-[var(--color-primary)] mb-3">{content.eyebrow}</p>
-      <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 36, fontWeight: 700 }} className="mb-4">
+      <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 'clamp(28px, 8vw, 36px)', fontWeight: 700 }} className="mb-4">
         {content.title}
       </h1>
       <p className="text-[var(--color-on-surface-variant)] text-base leading-relaxed mb-8">

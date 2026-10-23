@@ -11,18 +11,18 @@ export function FeaturedSection() {
   }, [])
 
   return (
-    <section className="py-24 bg-[var(--color-surface-container-low)] px-[var(--spacing-gutter)]">
+    <section className="py-16 sm:py-24 bg-[var(--color-surface-container-low)] px-[var(--spacing-gutter)]">
       <div className="max-w-[var(--spacing-max-width)] mx-auto">
-        <div className="flex justify-between items-end mb-12">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-8 sm:mb-12">
           <div>
-            <h2 className="mb-2" style={{ fontFamily: 'var(--font-headline)', fontSize: 40, fontWeight: 700 }}>
+            <h2 className="mb-2" style={{ fontFamily: 'var(--font-headline)', fontSize: 'clamp(28px, 7vw, 40px)', fontWeight: 700, lineHeight: 1.15 }}>
               Escaneos Destacados
             </h2>
             <p className="text-[var(--color-on-surface-variant)] text-base">
               Capturas de alta fidelidad disponibles para inspección virtual inmediata.
             </p>
           </div>
-          <Link to="/catalog" className="label-caps text-[var(--color-primary)] flex items-center gap-2 hover:gap-4 transition-all">
+          <Link to="/catalog" className="label-caps text-[var(--color-primary)] flex items-center gap-2 hover:gap-4 transition-all shrink-0 whitespace-nowrap">
             VER CATÁLOGO COMPLETO
             <span className="material-symbols-outlined">arrow_forward</span>
           </Link>

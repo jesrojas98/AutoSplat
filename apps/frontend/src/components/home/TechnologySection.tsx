@@ -1,6 +1,6 @@
 export function TechnologySection() {
   return (
-    <section className="py-32 px-[var(--spacing-gutter)] overflow-hidden relative">
+    <section className="py-16 sm:py-32 px-[var(--spacing-gutter)] overflow-hidden relative">
       <div className="absolute inset-0 bg-[var(--color-surface-container-lowest)] -z-10" />
 
       <div className="max-w-[var(--spacing-max-width)] mx-auto flex flex-col items-center text-center">
@@ -8,15 +8,15 @@ export function TechnologySection() {
           LA TECNOLOGÍA
         </span>
         <h2
-          className="mb-16"
-          style={{ fontFamily: 'var(--font-headline)', fontSize: 40, fontWeight: 700 }}
+          className="mb-10 sm:mb-16"
+          style={{ fontFamily: 'var(--font-headline)', fontSize: 'clamp(28px, 7vw, 40px)', fontWeight: 700, lineHeight: 1.15 }}
         >
           De 40 fotos a precisión milimétrica.
         </h2>
 
         <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
           {/* Paso 1 */}
-          <div className="glass-card flex flex-col items-center p-8 rounded-2xl border-dashed border-[var(--color-outline-variant)]/50">
+          <div className="glass-card flex flex-col items-center p-6 sm:p-8 rounded-2xl border-dashed border-[var(--color-outline-variant)]/50">
             <div className="mb-6 grid grid-cols-3 gap-2 opacity-50">
               {Array.from({ length: 9 }).map((_, i) => (
                 <div
@@ -45,7 +45,7 @@ export function TechnologySection() {
 
           {/* Paso 2 */}
           <div
-            className="glass-card flex flex-col items-center p-8 rounded-2xl"
+            className="glass-card flex flex-col items-center p-6 sm:p-8 rounded-2xl"
             style={{ border: '2px solid rgba(180,197,255,0.3)' }}
           >
             <div className="mb-6 h-24 w-24 relative flex items-center justify-center">

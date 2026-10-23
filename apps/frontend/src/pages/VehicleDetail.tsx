@@ -67,7 +67,7 @@ export function VehicleDetail() {
   if (!vehicle) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-[var(--spacing-gutter)] text-center">
       <p className="label-caps text-[var(--color-primary)] mb-4">404</p>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 700 }} className="mb-6">Vehículo no encontrado</h1>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(28px, 8vw, 40px)', fontWeight: 700 }} className="mb-6">Vehículo no encontrado</h1>
       <Link to="/catalog" className="glow-primary px-8 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all">
         VER CATÁLOGO
       </Link>
@@ -113,7 +113,7 @@ export function VehicleDetail() {
             {vehicle.has_3d_model && (
               <div className="absolute top-4 left-4 flex items-center gap-2 glass-card px-3 py-2 rounded-lg z-10">
                 <span className="material-symbols-outlined text-[var(--color-primary)] text-base">view_in_ar</span>
-                <span className="label-caps text-[var(--color-primary)] text-[10px]">VISTA 3D DISPONIBLE</span>
+                <span className="label-caps text-[var(--color-primary)] text-[11px]">VISTA 3D DISPONIBLE</span>
               </div>
             )}
             {images.length > 1 && (
@@ -172,7 +172,7 @@ export function VehicleDetail() {
                 <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-outline-variant)]/30">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
-                    <span className="label-caps text-[var(--color-primary)] text-[10px]">VISTA 3D EN VIVO</span>
+                    <span className="label-caps text-[var(--color-primary)] text-[11px]">VISTA 3D EN VIVO</span>
                   </div>
                   <span className="mono-spec text-[var(--color-on-surface-variant)] text-xs">Gaussian Splatting</span>
                 </div>
@@ -199,9 +199,9 @@ export function VehicleDetail() {
         <div className="flex flex-col gap-6">
           <div>
             <p className="label-caps text-[var(--color-on-surface-variant)] mb-1">{vehicle.year} · {vehicle.brand}</p>
-            <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 36, fontWeight: 700, lineHeight: 1.2 }} className="mb-3">{vehicle.model}</h1>
+            <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 'clamp(28px, 8vw, 36px)', fontWeight: 700, lineHeight: 1.2 }} className="mb-3">{vehicle.model}</h1>
             <p className="flex items-baseline gap-2">
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 700 }} className="text-[var(--color-on-surface)]">
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px, 9vw, 40px)', fontWeight: 700 }} className="text-[var(--color-on-surface)]">
                 {formatPriceNumber(vehicle.price)}
               </span>
               <span className="label-caps text-[var(--color-on-surface-variant)] text-xs">CLP</span>
@@ -251,7 +251,7 @@ export function VehicleDetail() {
                   <div key={label} className="flex items-start gap-3">
                     <span className="material-symbols-outlined text-[var(--color-primary)] text-base mt-0.5">{icon}</span>
                     <div>
-                      <p className="label-caps text-[var(--color-on-surface-variant)] text-[10px]">{label}</p>
+                      <p className="label-caps text-[var(--color-on-surface-variant)] text-[11px]">{label}</p>
                       <p className="mono-spec text-[var(--color-on-surface)] text-sm">{value}</p>
                     </div>
                   </div>

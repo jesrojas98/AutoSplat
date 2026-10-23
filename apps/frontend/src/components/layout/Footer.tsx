@@ -9,8 +9,8 @@ const footerLinks = [
 export function Footer() {
   return (
     <footer className="bg-[var(--color-surface-container-lowest)] border-t border-[var(--color-outline-variant)]/20">
-      <div className="flex flex-col md:flex-row justify-between items-center py-12 px-[var(--spacing-gutter)] max-w-[var(--spacing-max-width)] mx-auto w-full gap-8">
-        <div>
+      <div className="flex flex-col md:flex-row justify-between items-center py-10 sm:py-12 px-[var(--spacing-gutter)] max-w-[var(--spacing-max-width)] mx-auto w-full gap-6 sm:gap-8 text-center md:text-left">
+        <div className="flex flex-col items-center md:items-start">
           <Link
             to="/"
             className="relative inline-flex items-center h-12 w-[260px]"
@@ -32,7 +32,7 @@ export function Footer() {
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-8">
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 sm:gap-x-8">
           {footerLinks.map((link) => (
             <Link
               key={link.to}

@@ -2,8 +2,8 @@ import '@google/model-viewer'
 
 export function NextGenSection() {
   return (
-    <section className="py-24 px-[var(--spacing-gutter)] max-w-[var(--spacing-max-width)] mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+    <section className="py-16 sm:py-24 px-[var(--spacing-gutter)] max-w-[var(--spacing-max-width)] mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
 
         {/* Texto + features */}
         <div>
@@ -18,8 +18,8 @@ export function NextGenSection() {
             <span className="text-[var(--color-outline)]">Explóralo en 3D.</span>
           </h2>
           <p
-            className="text-[var(--color-on-surface-variant)] mb-10"
-            style={{ fontSize: 18, lineHeight: 1.6 }}
+            className="text-[var(--color-on-surface-variant)] mb-8 sm:mb-10 text-base sm:text-lg"
+            style={{ lineHeight: 1.6 }}
           >
             Nuestro motor convierte imágenes 2D en entornos 3D inmersivos.
             Experimenta cada curva, hueco de panel y detalle interior con un realismo
@@ -39,7 +39,7 @@ export function NextGenSection() {
                 desc: 'Haz zoom en el tejido de la fibra de carbono o en la textura de las costuras de cuero.',
               },
               {
-                icon: 'rotate_3d',
+                icon: '3d_rotation',
                 title: 'Vista de 360°',
                 desc: 'Rota el modelo libremente desde cualquier ángulo, igual que tener el auto frente a ti.',
               },
