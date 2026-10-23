@@ -6,7 +6,7 @@ import type { User } from '@supabase/supabase-js'
 
 export function AuthCallback() {
   const navigate = useNavigate()
-  const [failure, setFailure] = useState<string | null>(null)
+  const [failure, setFailure] = useState(false)
 
   useEffect(() => {
     let done = false
@@ -45,7 +45,6 @@ export function AuthCallback() {
 
     // Algunos navegadores móviles no completan la detección automática de la URL;
     // si a los 3s no hay sesión, se intenta con los tokens del hash a mano.
-    let manualError: string | null = null
     const manual = setTimeout(async () => {
       if (done) return
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
@@ -54,31 +53,17 @@ export function AuthCallback() {
       if (!access_token || !refresh_token) return
       try {
         const { data, error } = await supabase.auth.setSession({ access_token, refresh_token })
-        if (error) manualError = error.message
-        else if (data.session?.user) syncAndRedirect(data.session.user)
-      } catch (e) {
-        manualError = e instanceof Error ? e.message : String(e)
+        if (!error && data.session?.user) syncAndRedirect(data.session.user)
+      } catch {
+        // el mensaje genérico del fallback cubre este caso
       }
     }, 3_000)
 
-    // Fallback: si en 10 segundos no llega sesión, mostrar por qué en vez de volver al login en silencio
-    const timeout = setTimeout(async () => {
+    // Fallback: si en 10 segundos no llega sesión, avisar en vez de volver al login en silencio
+    const timeout = setTimeout(() => {
       if (done) return
       done = true
-      const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search)
-      const providerError = params.get('error_description') ?? params.get('error')
-      const { data, error } = await supabase.auth.getSession()
-      const issuedAt = Number(params.get('expires_at')) - Number(params.get('expires_in'))
-      const skew = issuedAt ? Math.round(Date.now() / 1000 - issuedAt) : null
-      setFailure([
-        providerError ? `Proveedor: ${providerError}` : null,
-        error ? `Supabase: ${error.message}` : null,
-        !params.get('access_token') && !params.get('code') && !providerError ? 'La URL de retorno no trae tokens.' : null,
-        skew !== null && Math.abs(skew) > 60 ? `El reloj del dispositivo difiere ${skew}s del servidor.` : null,
-        manualError ? `Intento manual: ${manualError}` : null,
-        `[hash:${window.location.hash ? 'sí' : 'no'} token:${params.get('access_token') ? 'sí' : 'no'} code:${params.get('code') ? 'sí' : 'no'} ls:${(() => { try { localStorage.setItem('t', '1'); localStorage.removeItem('t'); return 'ok' } catch { return 'bloqueado' } })()}]`,
-        data.session ? 'Hay sesión pero no se pudo completar el registro.' : null,
-      ].filter(Boolean).join(' ') || 'No llegó la sesión.')
+      setFailure(true)
     }, 10_000)
 
     return () => {
@@ -94,7 +79,9 @@ export function AuthCallback() {
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
           <span className="material-symbols-outlined text-[var(--color-error)]" style={{ fontSize: 40 }}>error</span>
           <p className="label-caps text-[var(--color-on-surface)]">NO SE PUDO INICIAR SESIÓN</p>
-          <p className="text-sm text-[var(--color-on-surface-variant)] break-words">{failure}</p>
+          <p className="text-sm text-[var(--color-on-surface-variant)]">
+            No pudimos completar el acceso con Google. Inténtalo de nuevo.
+          </p>
           <button
             onClick={() => navigate('/login')}
             className="bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-6 py-3 rounded-lg label-caps font-bold"
