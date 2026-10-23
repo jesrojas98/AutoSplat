@@ -131,8 +131,5 @@ export const ANGLES = [
   { angle: 'underbody',       label: 'Piso / zócalo' },
   { angle: 'windshield',      label: 'Parabrisas' },
   { angle: 'rear-window',     label: 'Luneta trasera' },
-  { angle: 'interior-front',  label: 'Interior delantero' },
-  { angle: 'interior-rear',   label: 'Interior trasero' },
-  { angle: 'dashboard',       label: 'Tablero' },
   { angle: 'engine',          label: 'Motor (opcional)' },
 ]

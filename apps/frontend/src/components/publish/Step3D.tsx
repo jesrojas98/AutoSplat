@@ -279,7 +279,7 @@ function FreeUploadZone({
       <div className="flex items-start gap-3 bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 rounded-lg px-4 py-3 mb-5">
         <span className="material-symbols-outlined text-[var(--color-primary)] text-base mt-0.5">directions_walk</span>
         <div className="text-sm text-[var(--color-on-surface-variant)] space-y-1">
-          <p><span className="text-[var(--color-primary)] font-medium">Técnica recomendada:</span> camina alrededor del auto tomando una foto cada 10–15°. Haz 3 pasadas a alturas distintas (rodilla, cintura, hombro). Incluye fotos del interior.</p>
+          <p><span className="text-[var(--color-primary)] font-medium">Técnica recomendada:</span> camina alrededor del auto tomando una foto cada 10–15°. Haz 3 pasadas a alturas distintas (rodilla, cintura, hombro). El modelo 3D se genera solo del exterior: no incluyas fotos del interior.</p>
         </div>
       </div>
 
