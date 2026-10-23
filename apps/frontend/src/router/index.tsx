@@ -14,6 +14,7 @@ import { LegalPage } from '@/pages/LegalPage'
 import { NotFound } from '@/pages/NotFound'
 import { Support } from '@/pages/Support'
 import { SellerRoute } from '@/components/layout/SellerRoute'
+import { AuthRoute } from '@/components/layout/AuthRoute'
 import { AdminRoute } from '@/components/layout/AdminRoute'
 
 export function AppRouter() {
@@ -28,7 +29,7 @@ export function AppRouter() {
         <Route path="/register" element={<Register />} />
         <Route path="/publish" element={<SellerRoute><PublishVehicle /></SellerRoute>} />
         <Route path="/vehicles/:id/edit" element={<EditVehicle />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<AuthRoute><Dashboard /></AuthRoute>} />
         <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
         <Route path="/privacy" element={<LegalPage type="privacy" />} />
         <Route path="/terms" element={<LegalPage type="terms" />} />

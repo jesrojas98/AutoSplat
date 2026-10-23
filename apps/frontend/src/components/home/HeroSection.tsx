@@ -15,7 +15,7 @@ export function HeroSection() {
   }
 
   return (
-    <section className="hero-section relative min-h-[90vh] flex flex-col items-center justify-center text-center px-[var(--spacing-gutter)] overflow-hidden">
+    <section className="hero-section relative min-h-[90vh] flex flex-col items-center justify-center text-center px-[var(--spacing-gutter)] py-14 sm:py-0 overflow-hidden">
 
       {/* Canvas + orbs — capa base */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
