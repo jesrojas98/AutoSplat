@@ -16,7 +16,9 @@ create index if not exists idx_notifications_unread on notifications(user_id, re
 
 -- Trigger: notificación al recibir un mensaje
 create or replace function notify_on_message()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql
+security invoker set search_path = public
+as $$
 declare
   v_sender_name text;
   v_vehicle_info text;
@@ -44,7 +46,9 @@ create trigger trg_notify_message
 
 -- Trigger: notificación al guardar en favoritos
 create or replace function notify_on_favorite()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql
+security invoker set search_path = public
+as $$
 declare
   v_vehicle_seller uuid;
   v_vehicle_info text;
@@ -74,7 +78,9 @@ create trigger trg_notify_favorite
 
 -- Trigger: notificación cuando el modelo 3D está listo
 create or replace function notify_on_model_ready()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql
+security invoker set search_path = public
+as $$
 declare
   v_seller_id uuid;
   v_vehicle_info text;

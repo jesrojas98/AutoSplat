@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { VehicleForm } from '@/pages/PublishVehicle'
+import { GuidedCameraCapture } from './GuidedCameraCapture'
 
 interface Props {
   form: VehicleForm
@@ -16,12 +17,22 @@ function getQuality(total: number): { label: string; color: string; desc: string
 }
 
 export function Step3D({ form, onChange, onNext, onPrev }: Props) {
-  const [tab, setTab] = useState<'free' | 'guided'>('free')
+  const [tab, setTab] = useState<'live' | 'free' | 'guided'>('live')
+  const [cameraOpen, setCameraOpen] = useState(false)
 
   const guidedCount = form.reconstructionImages.filter((a) => a.file !== null).length
   const totalCount = guidedCount + form.freeImages.length
   const canContinue = totalCount >= 20
   const quality = getQuality(totalCount)
+
+  const hasCameraSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
+
+  function handleLiveCapture(files: File[]) {
+    setCameraOpen(false)
+    if (files.length === 0) return
+    const next = [...form.freeImages, ...files].slice(0, 200)
+    onChange({ freeImages: next })
+  }
 
   function setAngleFile(index: number, file: File | null) {
     const next = [...form.reconstructionImages]
@@ -83,13 +94,14 @@ export function Step3D({ form, onChange, onNext, onPrev }: Props) {
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-[var(--color-surface-container)] rounded-lg mb-6">
         {[
+          { id: 'live', label: 'Captura en vivo', icon: 'videocam', count: 0 },
           { id: 'free', label: 'Fotos libres', icon: 'add_photo_alternate', count: form.freeImages.length },
           { id: 'guided', label: 'Ángulos guiados', icon: 'grid_view', count: guidedCount },
         ].map((t) => (
           <button
             key={t.id}
             type="button"
-            onClick={() => setTab(t.id as 'free' | 'guided')}
+            onClick={() => setTab(t.id as 'live' | 'free' | 'guided')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md label-caps text-xs transition-all ${
               tab === t.id
                 ? 'bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)]'
@@ -106,6 +118,56 @@ export function Step3D({ form, onChange, onNext, onPrev }: Props) {
           </button>
         ))}
       </div>
+
+      {/* Tab: captura en vivo */}
+      {tab === 'live' && (
+        <div>
+          <div className="flex items-start gap-3 bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 rounded-lg px-4 py-3 mb-5">
+            <span className="material-symbols-outlined text-[var(--color-primary)] text-base mt-0.5">tips_and_updates</span>
+            <p className="text-[var(--color-on-surface-variant)] text-sm">
+              <span className="text-[var(--color-primary)] font-medium">Recomendado:</span> usa el giroscopio de tu teléfono para capturar automáticamente mientras rodeas el auto. Mejora mucho la cobertura de ángulos frente a subir fotos ya tomadas.
+            </p>
+          </div>
+
+          {!hasCameraSupport ? (
+            <div className="rounded-xl border border-[var(--color-outline-variant)]/30 p-8 text-center">
+              <span className="material-symbols-outlined text-[var(--color-outline)] mb-2" style={{ fontSize: 36 }}>videocam_off</span>
+              <p className="text-[var(--color-on-surface-variant)] text-sm">
+                Tu navegador no soporta acceso a la cámara. Abre esta página desde el teléfono para usar la captura en vivo, o usa el modo "Fotos libres".
+              </p>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
+              className="w-full glow-primary rounded-xl border-2 border-dashed border-[var(--color-primary)]/40 p-10 flex flex-col items-center justify-center gap-3 hover:bg-[var(--color-primary)]/5 transition-all"
+            >
+              <span className="material-symbols-outlined text-[var(--color-primary)]" style={{ fontSize: 44 }}>videocam</span>
+              <p style={{ fontFamily: 'var(--font-headline)', fontWeight: 600 }} className="text-base">
+                Abrir cámara y empezar captura guiada
+              </p>
+              <p className="label-caps text-[var(--color-on-surface-variant)] text-xs text-center">
+                2 PASADAS × 24 FOTOS · GIRO DE 360° A DOS ALTURAS
+              </p>
+            </button>
+          )}
+
+          {form.freeImages.length > 0 && (
+            <div className="mt-5">
+              <p className="label-caps text-[var(--color-on-surface-variant)] text-xs mb-3">
+                {form.freeImages.length} FOTOS CAPTURADAS
+              </p>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                {form.freeImages.map((file, i) => (
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[var(--color-outline-variant)]/30">
+                    <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab: fotos libres */}
       {tab === 'free' && (
@@ -159,6 +221,13 @@ export function Step3D({ form, onChange, onNext, onPrev }: Props) {
           <span className="material-symbols-outlined text-base">arrow_forward</span>
         </button>
       </div>
+
+      {cameraOpen && (
+        <GuidedCameraCapture
+          onCapture={handleLiveCapture}
+          onClose={() => setCameraOpen(false)}
+        />
+      )}
     </div>
   )
 }
