@@ -17,6 +17,7 @@ export function Catalog() {
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState('newest')
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [total, setTotal] = useState(0)
@@ -63,13 +64,22 @@ export function Catalog() {
     })
 
   return (
-    <div className="px-[var(--spacing-gutter)] py-12 max-w-[var(--spacing-max-width)] mx-auto">
+    <div className="px-4 sm:px-[var(--spacing-gutter)] py-6 sm:py-12 max-w-[var(--spacing-max-width)] mx-auto">
       <div className="flex gap-8">
 
-        {/* Sidebar filtros */}
-        <aside className="hidden lg:block w-72 shrink-0">
-          <div className="glass-panel rounded-xl p-6 sticky top-28">
-            <h2 style={{ fontFamily: 'var(--font-headline)', fontWeight: 600, fontSize: 20 }} className="mb-6">Filtrar</h2>
+        {filtersOpen && (
+          <div className="lg:hidden fixed inset-0 bg-black/60 z-40" onClick={() => setFiltersOpen(false)} />
+        )}
+
+        {/* Filtros: sidebar en desktop, hoja inferior en móvil */}
+        <aside className={`${filtersOpen ? 'fixed inset-x-0 bottom-0 z-50 p-3 max-h-[85vh] overflow-y-auto' : 'hidden'} lg:block lg:static lg:z-auto lg:p-0 lg:max-h-none lg:overflow-visible lg:w-72 lg:shrink-0`}>
+          <div className="glass-panel rounded-xl p-5 sm:p-6 lg:sticky lg:top-28 bg-[var(--color-surface)] lg:bg-transparent">
+            <div className="flex items-center justify-between mb-6">
+              <h2 style={{ fontFamily: 'var(--font-headline)', fontWeight: 600, fontSize: 20 }}>Filtrar</h2>
+              <button type="button" onClick={() => setFiltersOpen(false)} className="lg:hidden p-1 -mr-1 rounded-full" aria-label="Cerrar filtros">
+                <span className="material-symbols-outlined text-[var(--color-on-surface-variant)]">close</span>
+              </button>
+            </div>
 
             <div className="mb-5">
               <label className="label-caps text-[var(--color-on-surface-variant)] block mb-2">Marca</label>
@@ -95,7 +105,7 @@ export function Catalog() {
               </button>
             </div>
 
-            <button onClick={applyFilters}
+            <button onClick={() => { applyFilters(); setFiltersOpen(false) }}
               className="glow-primary w-full py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all mb-3">
               APLICAR FILTROS
             </button>
@@ -107,17 +117,22 @@ export function Catalog() {
 
         {/* Resultados */}
         <div className="flex-1 min-w-0">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
             <div>
-              <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 32, fontWeight: 700 }}>Inventario</h1>
+              <h1 className="text-[28px] sm:text-[32px]" style={{ fontFamily: 'var(--font-headline)', fontWeight: 700 }}>Inventario</h1>
               <p className="text-[var(--color-on-surface-variant)] text-sm mt-1">
                 {loading ? 'Cargando...' : `${total} vehículos encontrados`}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <label className="label-caps text-[var(--color-on-surface-variant)] text-xs whitespace-nowrap">ORDENAR POR</label>
-              <select value={sort} onChange={(e) => setSort(e.target.value)}
-                className="bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-3 py-2 text-sm text-[var(--color-on-surface)] outline-none">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button type="button" onClick={() => setFiltersOpen(true)}
+                className="lg:hidden flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-outline-variant)]/40 label-caps text-xs text-[var(--color-on-surface)] shrink-0">
+                <span className="material-symbols-outlined text-base">tune</span>
+                FILTROS
+              </button>
+              <label className="hidden sm:block label-caps text-[var(--color-on-surface-variant)] text-xs whitespace-nowrap">ORDENAR POR</label>
+              <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Ordenar por"
+                className="flex-1 sm:flex-none min-w-0 bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-3 py-2.5 text-sm text-[var(--color-on-surface)] outline-none">
                 {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
@@ -151,7 +166,7 @@ export function Catalog() {
               </div>
 
               {pages > 1 && (
-                <div className="flex justify-center items-center gap-2 mt-10">
+                <div className="flex flex-wrap justify-center items-center gap-2 mt-10">
                   <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
                     className="p-2 rounded-lg hover:bg-[var(--color-surface-container-high)] disabled:opacity-30 transition-colors">
                     <span className="material-symbols-outlined text-[var(--color-on-surface-variant)]">chevron_left</span>

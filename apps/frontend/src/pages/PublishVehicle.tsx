@@ -54,17 +54,17 @@ export function PublishVehicle() {
   function prev() { setStep((s) => Math.max(s - 1, 1)) }
 
   return (
-    <div className="px-[var(--spacing-gutter)] py-12 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-[var(--spacing-gutter)] py-6 sm:py-12 max-w-4xl mx-auto">
       {/* Título */}
-      <div className="mb-10">
+      <div className="mb-6 sm:mb-10">
         <p className="label-caps text-[var(--color-primary)] mb-2">NUEVO AVISO</p>
-        <h1 style={{ fontFamily: 'var(--font-headline)', fontSize: 32, fontWeight: 700 }}>
+        <h1 className="text-[28px] sm:text-[32px]" style={{ fontFamily: 'var(--font-headline)', fontWeight: 700 }}>
           Publicar vehículo
         </h1>
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center mb-10">
+      <div className="flex items-center mb-3 sm:mb-10">
         {STEPS.map((s, i) => (
           <div key={s.id} className="flex items-center flex-1 last:flex-none">
             <button
@@ -88,14 +88,19 @@ export function PublishVehicle() {
               </span>
             </button>
             {i < STEPS.length - 1 && (
-              <div className={`flex-1 h-px mx-3 transition-colors ${step > s.id ? 'bg-[var(--color-primary)]/50' : 'bg-[var(--color-outline-variant)]/30'}`} />
+              <div className={`flex-1 h-px mx-2 sm:mx-3 transition-colors ${step > s.id ? 'bg-[var(--color-primary)]/50' : 'bg-[var(--color-outline-variant)]/30'}`} />
             )}
           </div>
         ))}
       </div>
 
+      {/* Etiqueta del paso actual (móvil: el stepper solo muestra íconos) */}
+      <p className="sm:hidden label-caps text-xs text-[var(--color-primary)] mb-5">
+        PASO {step} DE {STEPS.length} · {STEPS[step - 1].label.toUpperCase()}
+      </p>
+
       {/* Contenido del paso */}
-      <div className="glass-card rounded-2xl p-8">
+      <div className="glass-card rounded-2xl p-4 sm:p-8">
         {step === 1 && <StepInfo form={form} onChange={updateForm} onNext={next} />}
         {step === 2 && <StepPhotos form={form} onChange={updateForm} onNext={next} onPrev={prev} />}
         {step === 3 && <Step3D form={form} onChange={updateForm} onNext={next} onPrev={prev} />}
