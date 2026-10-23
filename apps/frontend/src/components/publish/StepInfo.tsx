@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { VehicleForm } from '@/pages/PublishVehicle'
 import { CHILE_REGIONS } from '@/data/chileLocations'
 import { VEHICLE_CATALOG } from '@/data/vehicleCatalog'
+import { formatDigits, parseDigits } from '@/utils/formatters'
 
 const TRANSMISSIONS = [
   { value: 'manual', label: 'Manual' },
@@ -325,12 +326,12 @@ export function StepInfo({ form, onChange, onNext }: Props) {
           <div className="relative">
             <input
               required
-              type="number"
+              type="text"
+              inputMode="numeric"
               className={`${inputCls} pr-14`}
-              placeholder="ej. 12000000"
-              min={0}
-              value={form.price}
-              onChange={(e) => onChange({ price: e.target.value })}
+              placeholder="ej. 12.000.000"
+              value={formatDigits(form.price)}
+              onChange={(e) => onChange({ price: parseDigits(e.target.value) })}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 label-caps text-[var(--color-outline)] text-[10px]">
               CLP
@@ -343,12 +344,12 @@ export function StepInfo({ form, onChange, onNext }: Props) {
           <div className="relative">
             <input
               required
-              type="number"
+              type="text"
+              inputMode="numeric"
               className={`${inputCls} pr-10`}
-              placeholder="ej. 50000"
-              min={0}
-              value={form.mileage}
-              onChange={(e) => onChange({ mileage: e.target.value })}
+              placeholder="ej. 50.000"
+              value={formatDigits(form.mileage)}
+              onChange={(e) => onChange({ mileage: parseDigits(e.target.value) })}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 label-caps text-[var(--color-outline)] text-[10px]">
               KM

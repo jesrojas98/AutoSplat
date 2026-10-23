@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { vehiclesService } from '@/services/vehicles.service'
 import { useAuthStore, getUserRole } from '@/store/auth.store'
-import { formatPriceNumber } from '@/utils/formatters'
+import { formatPriceNumber, formatDigits, parseDigits } from '@/utils/formatters'
 import { CHILE_REGIONS } from '@/data/chileLocations'
 import { VEHICLE_CATALOG } from '@/data/vehicleCatalog'
 
@@ -333,16 +333,16 @@ export function EditVehicle() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Field label="PRECIO (CLP)">
               <div className="relative">
-                <input className={`${inputCls} pr-14`} type="number" value={form.price}
-                  onChange={(e) => set('price', e.target.value)} required min={0} placeholder="ej. 12000000" />
+                <input className={`${inputCls} pr-14`} type="text" inputMode="numeric" value={formatDigits(form.price)}
+                  onChange={(e) => set('price', parseDigits(e.target.value))} required placeholder="ej. 12.000.000" />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 label-caps text-[var(--color-outline)] text-[10px]">CLP</span>
               </div>
               {form.price && <p className="text-[var(--color-primary)] text-xs mt-1.5">{formatPriceNumber(Number(form.price))} CLP</p>}
             </Field>
             <Field label="KILOMETRAJE">
               <div className="relative">
-                <input className={`${inputCls} pr-10`} type="number" value={form.mileage}
-                  onChange={(e) => set('mileage', e.target.value)} required min={0} placeholder="ej. 50000" />
+                <input className={`${inputCls} pr-10`} type="text" inputMode="numeric" value={formatDigits(form.mileage)}
+                  onChange={(e) => set('mileage', parseDigits(e.target.value))} required placeholder="ej. 50.000" />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 label-caps text-[var(--color-outline)] text-[10px]">KM</span>
               </div>
             </Field>

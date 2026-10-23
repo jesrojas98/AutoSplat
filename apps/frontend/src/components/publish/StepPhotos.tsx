@@ -35,6 +35,12 @@ export function StepPhotos({ form, onChange, onNext, onPrev }: Props) {
         Sube entre 4 y 20 fotos que representen bien el vehículo (exterior, interior, detalles).
         Estas fotos se mostrarán en el catálogo.
       </p>
+      <div className="flex items-start gap-3 bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20 rounded-lg px-4 py-3 mb-6">
+        <span className="material-symbols-outlined text-[var(--color-primary)] text-base mt-0.5">view_in_ar</span>
+        <p className="text-[var(--color-on-surface-variant)] text-sm">
+          La <span className="text-[var(--color-primary)] font-medium">captura guiada con la cámara</span> para generar el modelo 3D está en el siguiente paso, <span className="font-medium">Vista 3D</span>.
+        </p>
+      </div>
 
       {/* Zona de drop */}
       <div
