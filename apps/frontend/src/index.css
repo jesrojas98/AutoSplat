@@ -13,6 +13,8 @@
   --color-surface-container-high:    #282a32;
   --color-surface-container-highest: #32343d;
   --color-surface-variant:           #32343d;
+  /* Hueco hundido dentro de una tarjeta (visores, placeholders) */
+  --color-surface-well:              #0c0e16;
 
   /* Texto */
   --color-on-surface:         #e1e2ed;
@@ -57,6 +59,10 @@
   --color-on-error:           #690005;
   --color-on-error-container: #ffdad6;
 
+  /* Estados (texto/íconos de éxito y advertencia) */
+  --color-success: #4ade80;
+  --color-warning: #facc15;
+
   /* Tipografía */
   --font-display:   "Space Grotesk", sans-serif;
   --font-headline:  "Space Grotesk", sans-serif;
@@ -78,6 +84,11 @@
   --spacing-margin-mobile:  20px;
   --spacing-max-width:      1440px;
 }
+
+/* Multiplicador de la intensidad de tintes/bordes de acento: 1 en oscuro
+   (valores originales), mayor en claro donde el alpha se lava sobre blanco. */
+:root { --tint-k: 1; }
+html.light { --tint-k: 1.6; }
 
 /* ── Componentes utilitarios globales ──────────────────────── */
 @layer components {
@@ -118,7 +129,7 @@
     border: 1px solid transparent;
     background:
       linear-gradient(var(--color-surface-container), var(--color-surface-container)) padding-box,
-      linear-gradient(to right, #b4c5ff, #2563eb) border-box;
+      linear-gradient(to right, var(--color-primary), var(--color-primary-container)) border-box;
   }
 
   .label-caps {
@@ -160,58 +171,95 @@
 }
 
 /* ── Modo claro — tokens que sobreescriben los dark ───────── */
+/*
+ * Misma lógica de capas que el modo oscuro, invertida:
+ *  - oscuro: fondo oscuro y cada capa (container → highest) más clara.
+ *  - claro:  fondo gris azulado suave, tarjetas blancas encima (lowest) y
+ *            cada capa de relleno (container → highest) un escalón más oscura.
+ * Un fondo y una tarjeta ambos blancos no se distinguen, por eso el fondo no
+ * es #fff. Los bordes usan outline-variant (muchas veces al 30–50% de alpha),
+ * por eso es bastante más oscuro que en el tema oscuro: el alpha sobre blanco
+ * lava el color mucho más que sobre negro.
+ */
 html.light {
-  --color-background:                #ffffff;
-  --color-surface:                   #ffffff;
-  --color-surface-dim:               #f1f5f9;
+  --color-background:                #f3f5fa;
+  --color-surface:                   #f3f5fa;
+  --color-surface-dim:               #e4e7f0;
   --color-surface-bright:            #ffffff;
   --color-surface-container-lowest:  #ffffff;
-  --color-surface-container-low:     #f1f5f9;
-  --color-surface-container:         #f8fafc;
-  --color-surface-container-high:    #e2e8f0;
-  --color-surface-container-highest: #cbd5e1;
-  --color-surface-variant:           #f1f3f9;
+  --color-surface-container-low:     #e9ecf4;
+  --color-surface-container:         #e6e9f2;
+  --color-surface-container-high:    #dde1ec;
+  --color-surface-container-highest: #d0d6e4;
+  --color-surface-variant:           #dde2ee;
+  --color-surface-well:              #e9ecf4;
 
-  --color-on-surface:         #11131b;
+  --color-on-surface:         #171923;
   --color-on-surface-variant: #434655;
-  --color-on-background:      #11131b;
+  --color-on-background:      #171923;
+  --color-inverse-surface:    #2e3039;
+  --color-inverse-on-surface: #f0f0fb;
 
-  --color-outline:         #8d90a0;
-  --color-outline-variant: #d1d4e2;
+  --color-outline:         #5f6272;
+  --color-outline-variant: #98a0b8;
 
-  --color-primary:              #2563eb;
-  --color-primary-container:    #dbe1ff;
+  --color-primary:              #0053db;
+  --color-primary-container:    #2563eb;
   --color-on-primary:           #ffffff;
-  --color-on-primary-container: #00174b;
+  --color-on-primary-container: #ffffff;
   --color-primary-fixed:        #dbe1ff;
-  --color-primary-fixed-dim:    #2563eb;
-  --color-surface-tint:         #2563eb;
+  --color-primary-fixed-dim:    #b4c5ff;
+  --color-on-primary-fixed:     #00174b;
+  --color-inverse-primary:      #b4c5ff;
+  --color-surface-tint:         #0053db;
 
-  --color-secondary:              #c0392b;
-  --color-secondary-container:    #fce4e1;
+  --color-secondary:              #ba1a26;
+  --color-secondary-container:    #d4182a;
   --color-on-secondary:           #ffffff;
-  --color-on-secondary-container: #68000a;
+  --color-on-secondary-container: #ffffff;
+  --color-secondary-fixed:        #ffdad7;
+  --color-secondary-fixed-dim:    #ffb3ad;
+  --color-on-secondary-fixed:     #410004;
+
+  --color-tertiary:              #a33800;
+  --color-tertiary-container:    #bc4800;
+  --color-on-tertiary:           #ffffff;
+  --color-on-tertiary-container: #ffffff;
+
+  --color-error:              #ba1a1a;
+  --color-error-container:    #ba1a1a;
+  --color-on-error:           #ffffff;
+  --color-on-error-container: #ffffff;
+
+  --color-success: #15803d;
+  --color-warning: #a16207;
 }
 
 html.light .glass-card {
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(209, 212, 226, 0.6);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 42%, transparent);
+  box-shadow: 0 1px 2px rgba(23, 25, 35, 0.05), 0 8px 20px -10px rgba(23, 25, 35, 0.14);
 }
 
 html.light .dropdown-card {
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(255, 255, 255, 0.99);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(209, 212, 226, 0.7);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 55%, transparent);
+  box-shadow: 0 4px 6px rgba(23, 25, 35, 0.06), 0 14px 32px -8px rgba(23, 25, 35, 0.2);
 }
 
 html.light .glass-panel {
-  background: rgba(248, 250, 252, 0.9);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(209, 212, 226, 0.5);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 40%, transparent);
+  box-shadow: 0 1px 2px rgba(23, 25, 35, 0.05), 0 8px 20px -10px rgba(23, 25, 35, 0.12);
+}
+
+/* El footer es una franja blanca contra un fondo gris azulado: su línea
+   superior debe verse contra ambos lados. */
+html.light footer {
+  border-top-color: color-mix(in srgb, var(--color-outline-variant) 45%, transparent);
 }
 
 html.light .glow-primary:hover {
@@ -233,6 +281,12 @@ html.light .brand-logo-dark {
 html.light .brand-logo-light {
   opacity: 1;
 }
+
+/* Texto atenuado: al 60% se lee bien sobre oscuro, pero sobre claro baja de
+   AA (cifras ~2.8:1, rótulos ~3.1:1), así que en claro se atenúa mucho menos. */
+.hero-stats { opacity: 0.6; }
+html.light .hero-stats { opacity: 0.92; }
+html.light footer p { opacity: 0.85; }
 
 /* ── Hero background — modo claro ─────────────────────────── */
 html.light .hero-section {

@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom'
 export function CtaSection() {
   return (
     <section className="py-16 sm:py-24 px-[var(--spacing-gutter)] max-w-4xl mx-auto">
-      <div className="glass-card p-6 sm:p-12 rounded-3xl relative overflow-hidden" style={{ borderColor: 'rgba(180,197,255,0.2)' }}>
+      <div className="glass-card p-6 sm:p-12 rounded-3xl relative overflow-hidden" style={{ borderColor: 'color-mix(in srgb, var(--color-primary) calc(20% * var(--tint-k)), transparent)' }}>
         {/* Blob de glow */}
         <div
           className="absolute top-0 right-0 w-64 h-64 -mr-32 -mt-32 blur-3xl rounded-full pointer-events-none"
-          style={{ background: 'rgba(180,197,255,0.05)' }}
+          style={{ background: 'color-mix(in srgb, var(--color-primary) calc(5% * var(--tint-k)), transparent)' }}
         />
 
         <h2

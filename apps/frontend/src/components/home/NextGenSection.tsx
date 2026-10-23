@@ -68,7 +68,7 @@ export function NextGenSection() {
             className="relative rounded-2xl overflow-hidden glass-card"
             style={{
               aspectRatio: '1 / 1',
-              border: '1px solid rgba(180,197,255,0.12)',
+              border: '1px solid color-mix(in srgb, var(--color-primary) calc(12% * var(--tint-k)), transparent)',
               boxShadow: '0 0 60px rgba(37,99,235,0.1)',
             }}
           >
@@ -106,7 +106,7 @@ export function NextGenSection() {
             {/* Badge */}
             <div
               className="absolute bottom-4 left-4 flex items-center gap-2 glass-card px-3 py-2 rounded-xl pointer-events-none"
-              style={{ border: '1px solid rgba(180,197,255,0.2)' }}
+              style={{ border: '1px solid color-mix(in srgb, var(--color-primary) calc(20% * var(--tint-k)), transparent)' }}
             >
               <span
                 className="material-symbols-outlined text-[var(--color-primary)]"

@@ -11,8 +11,8 @@ interface Props {
 
 function getQuality(total: number): { label: string; color: string; desc: string } {
   if (total >= 80) return { label: 'EXCELENTE', color: 'var(--color-primary)', desc: 'Detalle máximo, texturas muy nítidas.' }
-  if (total >= 50) return { label: 'MUY BUENA', color: '#4ade80', desc: 'Buena definición y cobertura completa.' }
-  if (total >= 30) return { label: 'BUENA', color: '#facc15', desc: 'Modelo reconocible con algunos artefactos.' }
+  if (total >= 50) return { label: 'MUY BUENA', color: 'var(--color-success)', desc: 'Buena definición y cobertura completa.' }
+  if (total >= 30) return { label: 'BUENA', color: 'var(--color-warning)', desc: 'Modelo reconocible con algunos artefactos.' }
   return { label: 'BÁSICA', color: 'var(--color-outline)', desc: `Necesitas al menos 20 fotos. Te faltan ${Math.max(0, 20 - total)}.` }
 }
 

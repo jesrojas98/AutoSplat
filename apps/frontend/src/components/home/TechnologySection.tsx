@@ -46,12 +46,12 @@ export function TechnologySection() {
           {/* Paso 2 */}
           <div
             className="glass-card flex flex-col items-center p-6 sm:p-8 rounded-2xl"
-            style={{ border: '2px solid rgba(180,197,255,0.3)' }}
+            style={{ border: '2px solid color-mix(in srgb, var(--color-primary) calc(30% * var(--tint-k)), transparent)' }}
           >
             <div className="mb-6 h-24 w-24 relative flex items-center justify-center">
               <div
                 className="absolute inset-0 rounded-full animate-pulse"
-                style={{ background: 'rgba(180,197,255,0.15)' }}
+                style={{ background: 'color-mix(in srgb, var(--color-primary) calc(15% * var(--tint-k)), transparent)' }}
               />
               <span
                 className="material-symbols-outlined text-[var(--color-primary)]"

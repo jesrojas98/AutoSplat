@@ -185,7 +185,7 @@ export function VehicleDetail() {
                     allow="cross-origin-isolated"
                   />
                 ) : (
-                  <div className="h-40 flex flex-col items-center justify-center gap-3 bg-[var(--color-surface-container-lowest)]">
+                  <div className="h-40 flex flex-col items-center justify-center gap-3 bg-[var(--color-surface-well)]">
                     <span className="material-symbols-outlined text-[var(--color-outline)]" style={{ fontSize: 40, fontVariationSettings: "'FILL' 1" }}>hourglass_empty</span>
                     <p className="label-caps text-[var(--color-on-surface-variant)] text-xs">Modelo 3D en procesamiento…</p>
                   </div>

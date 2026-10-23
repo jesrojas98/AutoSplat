@@ -100,7 +100,7 @@ export function HeroSection() {
         </div>
 
         {/* Stats */}
-        <div className="flex flex-wrap justify-center gap-8 mt-12 opacity-60">
+        <div className="hero-stats flex flex-wrap justify-center gap-8 mt-12">
           {[
             { value: '2.400+', label: 'VEHÍCULOS' },
             { value: '380+', label: 'MODELOS 3D' },
