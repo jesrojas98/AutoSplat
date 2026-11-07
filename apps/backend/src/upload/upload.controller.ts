@@ -11,6 +11,8 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
 
 const IMAGE_LIMITS = { fileSize: 10 * 1024 * 1024 } // 10 MB
 const ALLOWED_TYPES = /^image\/(jpeg|jpg|png|webp)$/
+// El frontend permite hasta 200 fotos libres + 21 ángulos guiados para el 3D
+const MAX_RECONSTRUCTION_IMAGES = 250
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
@@ -58,7 +60,7 @@ export class UploadController {
   }
 
   @Post('vehicles/:vehicleId/reconstruction')
-  @UseInterceptors(FilesInterceptor('images', 50, { limits: IMAGE_LIMITS }))
+  @UseInterceptors(FilesInterceptor('images', MAX_RECONSTRUCTION_IMAGES, { limits: IMAGE_LIMITS }))
   async uploadReconstructionImages(
     @Param('vehicleId') vehicleId: string,
     @UploadedFiles() files: Express.Multer.File[],

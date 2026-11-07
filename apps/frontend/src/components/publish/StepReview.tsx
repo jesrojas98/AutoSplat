@@ -29,7 +29,7 @@ const STEP_FAILED = [
 function describePublishError(err: any, step: number): string {
   const res = err?.response
   if (!res) {
-    return `${STEP_FAILED[step]}: no hay conexión con el servidor o la subida tardó demasiado. Revisa tu internet y vuelve a intentarlo.`
+    return `${STEP_FAILED[step]}: no hay conexión con el servidor (${api.defaults.baseURL}) o la subida tardó demasiado. Revisa tu internet y vuelve a intentarlo.`
   }
   const msg = res.data?.message
   const detail = Array.isArray(msg) ? msg.join(', ') : msg

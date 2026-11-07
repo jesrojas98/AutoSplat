@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config'
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary'
 import { Readable } from 'stream'
 
+const UPLOAD_CONCURRENCY = 8
+
 @Injectable()
 export class UploadService implements OnModuleInit {
   constructor(private config: ConfigService) {}
@@ -45,7 +47,13 @@ export class UploadService implements OnModuleInit {
   }
 
   async uploadMany(files: Express.Multer.File[], folder: string) {
-    return Promise.all(files.map((f) => this.uploadImage(f, folder)))
+    // Por tandas: con 100+ fotos, subirlas todas a la vez satura Cloudinary y la memoria
+    const results: Awaited<ReturnType<UploadService['uploadImage']>>[] = []
+    for (let i = 0; i < files.length; i += UPLOAD_CONCURRENCY) {
+      const batch = files.slice(i, i + UPLOAD_CONCURRENCY)
+      results.push(...(await Promise.all(batch.map((f) => this.uploadImage(f, folder)))))
+    }
+    return results
   }
 
   async deleteImage(publicId: string) {
