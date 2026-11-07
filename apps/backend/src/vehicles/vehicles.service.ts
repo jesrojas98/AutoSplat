@@ -40,7 +40,10 @@ export class VehiclesService {
       .range(offset, offset + limit - 1)
 
     if (brand) query = query.ilike('brand', `%${brand}%`)
-    if (search) query = query.or(`brand.ilike.%${search}%,model.ilike.%${search}%`)
+    // , ( ) % * y \ tienen significado dentro del filtro or() de PostgREST: se quitan para que
+    // el texto buscado no pueda alterar la consulta.
+    const safeSearch = search?.replace(/[,()%*\\]/g, ' ').trim()
+    if (safeSearch) query = query.or(`brand.ilike.%${safeSearch}%,model.ilike.%${safeSearch}%`)
     if (minPrice) query = query.gte('price', minPrice)
     if (maxPrice) query = query.lte('price', maxPrice)
     if (minYear) query = query.gte('year', minYear)

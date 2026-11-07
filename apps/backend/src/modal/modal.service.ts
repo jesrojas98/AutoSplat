@@ -5,9 +5,11 @@ import { ConfigService } from '@nestjs/config'
 export class ModalService {
   private readonly logger = new Logger(ModalService.name)
   private readonly webhookUrl: string | undefined
+  private readonly webhookSecret: string | undefined
 
   constructor(private config: ConfigService) {
     this.webhookUrl = this.config.get<string>('MODAL_WEBHOOK_URL')
+    this.webhookSecret = this.config.get<string>('MODAL_WEBHOOK_SECRET')
   }
 
   get isConfigured(): boolean {
@@ -24,7 +26,7 @@ export class ModalService {
       const res = await fetch(this.webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: jobId, vehicle_id: vehicleId }),
+        body: JSON.stringify({ job_id: jobId, vehicle_id: vehicleId, secret: this.webhookSecret }),
         signal: AbortSignal.timeout(10_000),
       })
 

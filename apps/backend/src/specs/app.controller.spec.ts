@@ -14,9 +14,13 @@ describe('AppController', () => {
     appController = app.get<AppController>(AppController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
-    });
+  it('GET / responde status ok (health check de Render)', () => {
+    expect(appController.getRoot()).toMatchObject({ status: 'ok' });
+  });
+
+  it('GET /health responde status ok y uptime numérico', () => {
+    const res = appController.getHealth();
+    expect(res.status).toBe('ok');
+    expect(typeof res.uptime).toBe('number');
   });
 });

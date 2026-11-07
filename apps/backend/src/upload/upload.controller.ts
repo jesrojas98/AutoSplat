@@ -1,6 +1,7 @@
 import {
   Controller, Post, Param, UseGuards, UseInterceptors,
-  UploadedFile, UploadedFiles, BadRequestException,
+  UploadedFile, UploadedFiles, BadRequestException, ParseUUIDPipe,
+  NotFoundException, ForbiddenException,
 } from '@nestjs/common'
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express'
 import { UploadService } from './upload.service'
@@ -8,11 +9,14 @@ import { SupabaseService } from '../supabase/supabase.service'
 import { JobsService } from '../jobs/jobs.service'
 import { ModalService } from '../modal/modal.service'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
+import { CurrentUser } from '../common/decorators/current-user.decorator'
 
 const IMAGE_LIMITS = { fileSize: 10 * 1024 * 1024 } // 10 MB
 const ALLOWED_TYPES = /^image\/(jpeg|jpg|png|webp)$/
 // El frontend permite hasta 200 fotos libres + 21 ángulos guiados para el 3D
 const MAX_RECONSTRUCTION_IMAGES = 250
+
+interface AuthUser { id: string; role: string }
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
@@ -27,9 +31,11 @@ export class UploadController {
   @Post('vehicles/:vehicleId/images')
   @UseInterceptors(FilesInterceptor('images', 30, { limits: IMAGE_LIMITS }))
   async uploadVehicleImages(
-    @Param('vehicleId') vehicleId: string,
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @CurrentUser() user: AuthUser,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
+    await this.assertCanManage(vehicleId, user)
     if (!files?.length) throw new BadRequestException('No se recibieron imágenes')
 
     files.forEach((f) => {
@@ -62,10 +68,16 @@ export class UploadController {
   @Post('vehicles/:vehicleId/reconstruction')
   @UseInterceptors(FilesInterceptor('images', MAX_RECONSTRUCTION_IMAGES, { limits: IMAGE_LIMITS }))
   async uploadReconstructionImages(
-    @Param('vehicleId') vehicleId: string,
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @CurrentUser() user: AuthUser,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
+    await this.assertCanManage(vehicleId, user)
     if (!files?.length) throw new BadRequestException('No se recibieron imágenes')
+
+    files.forEach((f) => {
+      if (!ALLOWED_TYPES.test(f.mimetype)) throw new BadRequestException(`Tipo no permitido: ${f.mimetype}`)
+    })
 
     const uploaded = await this.upload.uploadMany(files, `vehicles/${vehicleId}/reconstruction`)
 
@@ -101,5 +113,16 @@ export class UploadController {
     if (!file) throw new BadRequestException('No se recibió imagen')
     const result = await this.upload.uploadImage(file, 'avatars', { width: 200, height: 200 })
     return { url: result.url, public_id: result.public_id }
+  }
+
+  /** Solo el dueño del vehículo (o un admin) puede subirle fotos y disparar su procesamiento 3D. */
+  private async assertCanManage(vehicleId: string, user: AuthUser) {
+    const { data } = await this.supabase.admin
+      .from('vehicles')
+      .select('seller_id')
+      .eq('id', vehicleId)
+      .maybeSingle()
+    if (!data) throw new NotFoundException('Vehículo no encontrado')
+    if (user.role !== 'admin' && data.seller_id !== user.id) throw new ForbiddenException('No tienes permiso')
   }
 }

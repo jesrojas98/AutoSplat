@@ -51,22 +51,41 @@ def process_job(body: dict) -> dict:
     Webhook HTTP que dispara el pipeline de reconstrucción 3D.
 
     Body esperado:
-        { "job_id": "uuid", "vehicle_id": "uuid" }
+        { "job_id": "uuid", "vehicle_id": "uuid", "secret": "<MODAL_WEBHOOK_SECRET>" }
+
+    Si MODAL_WEBHOOK_SECRET está definido en el secret de Modal, el body debe
+    traer el mismo valor; así solo el backend puede disparar el pipeline.
 
     Retorna:
         { "status": "ok" | "error", "message": "..." }
     """
+    import hmac
     import os
     import logging
 
     # Agregar el directorio del worker al path
     sys.path.insert(0, "/worker/src")
 
+    # nerfstudio vive en el user-site de /home/user (python3.10) pero Modal corre como root,
+    # así que sin esto `ns-process-data` falla con "No module named nerfstudio".
+    # Se asigna aquí (no en la imagen) para que solo lo hereden los subprocesos ns-*
+    # y no se mezcle con los paquetes del Python 3.11 que ejecuta esta función.
+    os.environ["PYTHONPATH"] = "/home/user/.local/lib/python3.10/site-packages"
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     )
     logger = logging.getLogger("modal_worker")
+
+    expected_secret = os.environ.get("MODAL_WEBHOOK_SECRET")
+    if expected_secret:
+        provided = str(body.get("secret") or "")
+        if not hmac.compare_digest(provided.encode(), expected_secret.encode()):
+            logger.warning("Webhook rechazado: secreto inválido")
+            return {"status": "error", "message": "No autorizado"}
+    else:
+        logger.warning("MODAL_WEBHOOK_SECRET no configurado: el webhook acepta cualquier llamada")
 
     job_id = body.get("job_id")
     vehicle_id = body.get("vehicle_id")

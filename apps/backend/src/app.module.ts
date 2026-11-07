@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_PIPE, APP_GUARD } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
+import { AppController } from './app.controller'
+import { AppService } from './app.service'
 import { RateLimitGuard } from './common/guards/rate-limit.guard'
 import { SupabaseModule } from './supabase/supabase.module'
 import { UsersModule } from './users/users.module'
@@ -28,7 +30,9 @@ import { ModalModule } from './modal/modal.module'
     AdminModule,
     ModalModule,
   ],
+  controllers: [AppController],
   providers: [
+    AppService,
     {
       provide: APP_PIPE,
       useValue: new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),

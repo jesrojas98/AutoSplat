@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common'
 import { VehiclesService } from './vehicles.service'
-import type { VehicleFilters } from './vehicles.service'
+import { VehicleFiltersDto } from './dto/vehicle-filters.dto'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../common/decorators/current-user.decorator'
@@ -11,7 +11,7 @@ export class VehiclesController {
   constructor(private vehicles: VehiclesService) {}
 
   @Get()
-  findAll(@Query() query: VehicleFilters) {
+  findAll(@Query() query: VehicleFiltersDto) {
     return this.vehicles.findAll(query)
   }
 

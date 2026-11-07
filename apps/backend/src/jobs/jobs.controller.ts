@@ -1,16 +1,10 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common'
+import { Controller, Get, Param, UseGuards } from '@nestjs/common'
 import { JobsService } from './jobs.service'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
 
 @Controller('jobs')
 export class JobsController {
   constructor(private jobs: JobsService) {}
-
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  create(@Body() body: { vehicleId: string; inputImagesCount: number }) {
-    return this.jobs.create(body.vehicleId, body.inputImagesCount)
-  }
 
   // Frontend consulta estado del job de un vehículo
   @Get('vehicle/:vehicleId')
