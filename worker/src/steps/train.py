@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from config import Config
+from steps.hardware import has_cuda
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +80,12 @@ def _find_config(output_dir: Path, experiment_name: str) -> Path:
 
 def _hardware_args() -> list[str]:
     """Retorna flags de entrenamiento adaptados al hardware disponible."""
+    if has_cuda():
+        logger.info("CUDA disponible — entrenamiento con GPU.")
+        return []
+
     try:
         import torch  # type: ignore
-        if torch.cuda.is_available():
-            logger.info("CUDA disponible — entrenamiento con GPU.")
-            return []
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             logger.info("Apple Silicon MPS disponible — entrenamiento acelerado.")
             # splatfacto soporta MPS desde nerfstudio 1.1+

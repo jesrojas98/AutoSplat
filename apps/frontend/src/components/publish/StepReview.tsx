@@ -12,6 +12,8 @@ interface Props {
 const FUEL_LABEL: Record<string, string> = { gasoline: 'Bencina', diesel: 'Diésel', electric: 'Eléctrico', hybrid: 'Híbrido' }
 const TRANSMISSION_LABEL: Record<string, string> = { manual: 'Manual', automatic: 'Automático', cvt: 'CVT' }
 
+const RECON_BATCH_SIZE = 10
+
 const STEPS_PUBLISH = [
   'Creando publicación...',
   'Subiendo fotos de galería...',
@@ -45,7 +47,9 @@ export function StepReview({ form, onPrev }: Props) {
   const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const publishStepRef = useRef(0)
-  const uploaded = useRef({ gallery: false, reconstruction: false })
+  // En un reintento se retoma desde lo que ya se subió (galería lista, fotos 3D ya enviadas)
+  const uploaded = useRef({ gallery: false, reconstructionFiles: 0 })
+  const [reconProgress, setReconProgress] = useState('')
   const covered3D = form.reconstructionImages.filter((a) => a.file !== null).length + form.freeImages.length
 
   function goTo(step: number) {
@@ -94,14 +98,24 @@ export function StepReview({ form, onPrev }: Props) {
       // 3. Subir fotos de reconstrucción 3D (guiadas + libres)
       const guidedFiles = form.reconstructionImages.filter((a) => a.file !== null).map((a) => a.file!)
       const allReconFiles = [...guidedFiles, ...form.freeImages]
-      if (allReconFiles.length > 0 && !uploaded.current.reconstruction) {
+      if (allReconFiles.length > 0 && uploaded.current.reconstructionFiles < allReconFiles.length) {
         goTo(2)
-        const fd = new FormData()
-        allReconFiles.forEach((f) => fd.append('images', f))
-        await api.post(`/upload/vehicles/${id}/reconstruction`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
-        uploaded.current.reconstruction = true
+        // Por tandas: un solo request con 100+ fotos agota la memoria del servidor y se corta en el móvil.
+        // El servidor crea el job 3D recién con la última tanda (finalize=true).
+        while (uploaded.current.reconstructionFiles < allReconFiles.length) {
+          const from = uploaded.current.reconstructionFiles
+          const batch = allReconFiles.slice(from, from + RECON_BATCH_SIZE)
+          const isLast = from + batch.length >= allReconFiles.length
+          setReconProgress(`${from} / ${allReconFiles.length}`)
+          const fd = new FormData()
+          batch.forEach((f) => fd.append('images', f))
+          await api.post(`/upload/vehicles/${id}/reconstruction`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            params: { finalize: isLast },
+          })
+          uploaded.current.reconstructionFiles = from + batch.length
+        }
+        setReconProgress('')
       }
 
       // 4. Publicar vehículo
@@ -219,7 +233,9 @@ export function StepReview({ form, onPrev }: Props) {
       {publishing && (
         <div className="mb-6 bg-[var(--color-surface-container)] rounded-xl p-4 flex items-center gap-3">
           <span className="material-symbols-outlined text-[var(--color-primary)] animate-spin text-base">progress_activity</span>
-          <p className="text-[var(--color-on-surface-variant)] text-sm">{STEPS_PUBLISH[publishStep]}</p>
+          <p className="text-[var(--color-on-surface-variant)] text-sm">
+            {STEPS_PUBLISH[publishStep]}{publishStep === 2 && reconProgress ? ` (${reconProgress})` : ''}
+          </p>
         </div>
       )}
 

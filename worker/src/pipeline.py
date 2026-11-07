@@ -28,10 +28,11 @@ _PROGRESS = {
 }
 
 
-def run_pipeline(job: dict) -> None:
+def run_pipeline(job: dict) -> bool:
     """
     Ejecuta el pipeline completo para un job.
     Maneja errores y limpia el directorio temporal al finalizar.
+    Retorna True si el job se completó, False si falló.
     """
     job_id = job["id"]
     vehicle_id = job["vehicle_id"]
@@ -43,6 +44,7 @@ def run_pipeline(job: dict) -> None:
 
     try:
         _run_steps(job_id, vehicle_id, work_dir, start_time)
+        return True
     except Exception as exc:
         logger.error("Pipeline falló para job %s: %s", job_id, exc, exc_info=True)
         report_progress(
@@ -53,6 +55,7 @@ def run_pipeline(job: dict) -> None:
             error_message=str(exc),
         )
         mark_job_failed(job_id, str(exc))
+        return False
     finally:
         _cleanup(work_dir)
 

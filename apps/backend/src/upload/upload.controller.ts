@@ -1,6 +1,6 @@
 import {
   Controller, Post, Param, UseGuards, UseInterceptors,
-  UploadedFile, UploadedFiles, BadRequestException, ParseUUIDPipe,
+  UploadedFile, UploadedFiles, BadRequestException, ParseUUIDPipe, Query,
   NotFoundException, ForbiddenException,
 } from '@nestjs/common'
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express'
@@ -71,6 +71,9 @@ export class UploadController {
     @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
     @CurrentUser() user: AuthUser,
     @UploadedFiles() files: Express.Multer.File[],
+    // El frontend sube las fotos por tandas y manda finalize=false en todas menos la última:
+    // el job 3D se crea una sola vez, cuando ya están todas. Sin el parámetro, se crea (compatible).
+    @Query('finalize') finalize?: string,
   ) {
     await this.assertCanManage(vehicleId, user)
     if (!files?.length) throw new BadRequestException('No se recibieron imágenes')
@@ -78,6 +81,14 @@ export class UploadController {
     files.forEach((f) => {
       if (!ALLOWED_TYPES.test(f.mimetype)) throw new BadRequestException(`Tipo no permitido: ${f.mimetype}`)
     })
+
+    // Las tandas siguientes continúan el orden de las anteriores
+    const { count: alreadyUploaded } = await this.supabase.admin
+      .from('vehicle_images')
+      .select('id', { count: 'exact', head: true })
+      .eq('vehicle_id', vehicleId)
+      .eq('image_type', 'reconstruction')
+    const offset = alreadyUploaded ?? 0
 
     const uploaded = await this.upload.uploadMany(files, `vehicles/${vehicleId}/reconstruction`)
 
@@ -87,7 +98,7 @@ export class UploadController {
       thumbnail_url: img.thumbnail_url,
       cloudinary_public_id: img.public_id,
       image_type: 'reconstruction',
-      sort_order: i,
+      sort_order: offset + i,
       width: img.width,
       height: img.height,
       file_size_kb: Math.round(img.bytes / 1024),
@@ -100,9 +111,11 @@ export class UploadController {
 
     if (error) throw new Error(error.message)
 
-    // Auto-crear job de reconstrucción y disparar Modal
-    const { job } = await this.jobs.create(vehicleId, files.length)
-    await this.modal.triggerJob(job.id, vehicleId)
+    // Auto-crear job de reconstrucción y disparar Modal (solo con la última tanda)
+    if (finalize !== 'false') {
+      const { job } = await this.jobs.create(vehicleId, offset + files.length)
+      await this.modal.triggerJob(job.id, vehicleId)
+    }
 
     return data
   }

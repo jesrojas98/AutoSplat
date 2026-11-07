@@ -37,6 +37,31 @@ export class JobsService {
     return { job, model }
   }
 
+  /**
+   * Marca un job (y su modelo) como fallido y quita el 3D del vehículo, para que la ficha
+   * no quede en "procesando" para siempre. Devuelve false si el job ya había terminado.
+   */
+  async markFailed(job: { id: string; vehicle_id: string; model_id: string | null }, message: string) {
+    const now = new Date().toISOString()
+    const { data, error } = await this.supabase.admin
+      .from('processing_jobs')
+      .update({ status: 'failed', current_step: 'failed', error_message: message.slice(0, 1000), finished_at: now })
+      .eq('id', job.id)
+      .in('status', ['pending', 'processing'])
+      .select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) return false
+
+    if (job.model_id) {
+      await this.supabase.admin
+        .from('vehicle_3d_models')
+        .update({ status: 'failed', error_message: message.slice(0, 1000) })
+        .eq('id', job.model_id)
+    }
+    await this.supabase.admin.from('vehicles').update({ has_3d_model: false }).eq('id', job.vehicle_id)
+    return true
+  }
+
   async getByVehicle(vehicleId: string) {
     const { data, error } = await this.supabase.admin
       .from('processing_jobs')

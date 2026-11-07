@@ -58,19 +58,23 @@ def process_job(body: dict) -> dict:
 
     Retorna:
         { "status": "ok" | "error", "message": "..." }
+        HTTP 500 si el pipeline falla.
     """
     import hmac
     import os
     import logging
 
+    from fastapi import HTTPException
+
     # Agregar el directorio del worker al path
     sys.path.insert(0, "/worker/src")
 
     # nerfstudio vive en el user-site de /home/user (python3.10) pero Modal corre como root,
-    # así que sin esto `ns-process-data` falla con "No module named nerfstudio".
-    # Se asigna aquí (no en la imagen) para que solo lo hereden los subprocesos ns-*
-    # y no se mezcle con los paquetes del Python 3.11 que ejecuta esta función.
-    os.environ["PYTHONPATH"] = "/home/user/.local/lib/python3.10/site-packages"
+    # así que sin esto los `ns-*` fallan con "No module named nerfstudio". Se usa PYTHONUSERBASE
+    # (y no PYTHONPATH) para que Python procese los .pth de las instalaciones editables (bionerf).
+    # Se asigna aquí (no en la imagen) para que solo lo hereden los subprocesos y no
+    # afecte al Python 3.11 que ejecuta esta función (su user-site, lib/python3.11, no existe).
+    os.environ["PYTHONUSERBASE"] = "/home/user/.local"
 
     logging.basicConfig(
         level=logging.INFO,
@@ -107,5 +111,7 @@ def process_job(body: dict) -> dict:
         logger.warning("Job %s no pudo ser reclamado (ya procesado o inexistente)", job_id)
         return {"status": "error", "message": "Job no disponible"}
 
-    run_pipeline(job)
+    if not run_pipeline(job):
+        # 500 para que el panel de Modal muestre el fallo (el detalle queda en processing_jobs.error_message)
+        raise HTTPException(status_code=500, detail=f"Job {job_id} falló")
     return {"status": "ok", "message": f"Job {job_id} procesado"}

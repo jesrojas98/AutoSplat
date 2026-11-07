@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from config import Config
+from steps.hardware import has_cuda
 
 logger = logging.getLogger(__name__)
 
@@ -73,16 +74,9 @@ def run_colmap(images_dir: Path, dest_dir: Path) -> Path:
 
 def _detect_gpu_flag() -> list[str]:
     """Detecta la aceleración de hardware disponible para COLMAP."""
-    try:
-        import torch  # type: ignore
-        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            logger.info("Apple Silicon MPS detectado — COLMAP usará CPU (MPS no compatible con COLMAP).")
-            return ["--no-gpu"]
-        if torch.cuda.is_available():
-            logger.info("CUDA disponible — COLMAP usará GPU.")
-            return []
-    except ImportError:
-        pass
+    if has_cuda():
+        logger.info("CUDA disponible — COLMAP usará GPU.")
+        return []
 
-    logger.info("Sin GPU — COLMAP en modo CPU.")
+    logger.info("Sin GPU CUDA — COLMAP en modo CPU.")
     return ["--no-gpu"]

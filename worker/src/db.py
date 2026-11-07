@@ -132,13 +132,35 @@ def claim_job_by_id(job_id: str) -> Optional[dict]:
 
 
 def mark_job_failed(job_id: str, error_message: str) -> None:
-    """Marca el job como fallido en Supabase."""
-    requests.patch(
+    """Marca el job como fallido y deja el modelo y el vehículo sin 3D (la ficha no queda 'procesando')."""
+    message = error_message[:1000]
+    r = requests.patch(
         f"{_url('processing_jobs')}?id=eq.{job_id}",
         headers=_headers(),
         json={
             "status": "failed",
-            "error_message": error_message[:1000],
+            "error_message": message,
             "finished_at": datetime.now(timezone.utc).isoformat(),
         },
-    ).raise_for_status()
+    )
+    r.raise_for_status()
+
+    rows = r.json() or []
+    if not rows:
+        return
+    job = rows[0]
+    try:
+        if job.get("model_id"):
+            requests.patch(
+                f"{_url('vehicle_3d_models')}?id=eq.{job['model_id']}",
+                headers=_headers(),
+                json={"status": "failed", "error_message": message},
+            ).raise_for_status()
+        if job.get("vehicle_id"):
+            requests.patch(
+                f"{_url('vehicles')}?id=eq.{job['vehicle_id']}",
+                headers=_headers(),
+                json={"has_3d_model": False},
+            ).raise_for_status()
+    except Exception as exc:
+        logger.warning("No se pudo actualizar modelo/vehículo del job %s: %s", job_id, exc)
