@@ -8,7 +8,7 @@ async function bootstrap() {
 
   const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
 
   app.enableCors({
     origin: allowedOrigins,

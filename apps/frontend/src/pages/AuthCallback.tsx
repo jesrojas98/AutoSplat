@@ -17,8 +17,26 @@ export function AuthCallback() {
       const storedRole = localStorage.getItem('oauth_role')
       const pendingRole: Extract<UserRole, 'buyer' | 'seller'> | null =
         storedRole === 'buyer' || storedRole === 'seller' ? storedRole : null
-      const role = pendingRole ?? normalizeUserRole(user.user_metadata?.role)
       localStorage.removeItem('oauth_role')
+
+      // La tabla users manda: un usuario que ya existe conserva su rol (p. ej. admin) aunque
+      // el login de Google llegue con otro rol elegido en /register o con metadata desfasada.
+      const { data: existing, error: lookupError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (lookupError) { navigate('/dashboard'); return }
+      if (existing) {
+        const dbRole = normalizeUserRole(existing.role)
+        if (user.user_metadata?.role !== dbRole) {
+          await supabase.auth.updateUser({ data: { role: dbRole } })
+        }
+        navigate('/dashboard')
+        return
+      }
+
+      const role = pendingRole ?? normalizeUserRole(user.user_metadata?.role)
       await supabase.from('users').upsert({
         id: user.id,
         email: user.email!,

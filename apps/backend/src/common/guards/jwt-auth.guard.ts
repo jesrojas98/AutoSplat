@@ -24,10 +24,18 @@ export class JwtAuthGuard implements CanActivate {
 
     if (error || !user) throw new UnauthorizedException()
 
+    // user_metadata lo puede editar el propio usuario con auth.updateUser, así que el rol
+    // se lee de la tabla users (la misma fuente que usa AdminGuard).
+    const { data: row } = await this.supabase.admin
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
     req.user = {
       id: user.id,
       email: user.email ?? '',
-      role: normalizeRole(user.user_metadata?.role),
+      role: normalizeRole(row?.role),
     }
 
     return true

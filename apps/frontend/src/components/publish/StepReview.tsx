@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { VehicleForm } from '@/pages/PublishVehicle'
 import { formatPriceNumber } from '@/utils/formatters'
@@ -19,6 +19,24 @@ const STEPS_PUBLISH = [
   'Publicando vehículo...',
 ]
 
+const STEP_FAILED = [
+  'No se pudo crear la publicación',
+  'No se pudieron subir las fotos de galería',
+  'No se pudieron subir las fotos para el 3D',
+  'No se pudo publicar el vehículo',
+]
+
+function describePublishError(err: any, step: number): string {
+  const res = err?.response
+  if (!res) {
+    return `${STEP_FAILED[step]}: no hay conexión con el servidor o la subida tardó demasiado. Revisa tu internet y vuelve a intentarlo.`
+  }
+  const msg = res.data?.message
+  const detail = Array.isArray(msg) ? msg.join(', ') : msg
+  if (res.status === 413) return `${STEP_FAILED[step]}: las fotos pesan demasiado.`
+  return `${STEP_FAILED[step]} (${res.status}${detail ? `: ${detail}` : ''}).`
+}
+
 export function StepReview({ form, onPrev }: Props) {
   const navigate = useNavigate()
   const [publishing, setPublishing] = useState(false)
@@ -26,60 +44,73 @@ export function StepReview({ form, onPrev }: Props) {
   const [done, setDone] = useState(false)
   const [vehicleId, setVehicleId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const publishStepRef = useRef(0)
+  const uploaded = useRef({ gallery: false, reconstruction: false })
   const covered3D = form.reconstructionImages.filter((a) => a.file !== null).length + form.freeImages.length
+
+  function goTo(step: number) {
+    publishStepRef.current = step
+    setPublishStep(step)
+  }
 
   async function handlePublish() {
     setPublishing(true)
     setError('')
     try {
-      // 1. Crear vehículo en borrador
-      setPublishStep(0)
-      const { data: vehicle } = await api.post('/vehicles', {
-        brand: form.brand,
-        model: form.model,
-        year: Number(form.year),
-        price: Number(form.price),
-        mileage: Number(form.mileage),
-        transmission: form.transmission || undefined,
-        fuel_type: form.fuelType || undefined,
-        body_type: form.bodyType || undefined,
-        color: form.color || undefined,
-        doors: form.doors ? Number(form.doors) : undefined,
-        location: form.location,
-        region: form.region || undefined,
-        description: form.description || undefined,
-      })
-      setVehicleId(vehicle.id)
+      // 1. Crear vehículo en borrador (en un reintento se reutiliza el que ya se creó)
+      goTo(0)
+      let id = vehicleId
+      if (!id) {
+        const { data: vehicle } = await api.post('/vehicles', {
+          brand: form.brand,
+          model: form.model,
+          year: Number(form.year),
+          price: Number(form.price),
+          mileage: Number(form.mileage),
+          transmission: form.transmission || undefined,
+          fuel_type: form.fuelType || undefined,
+          body_type: form.bodyType || undefined,
+          color: form.color || undefined,
+          doors: form.doors ? Number(form.doors) : undefined,
+          location: form.location,
+          region: form.region || undefined,
+          description: form.description || undefined,
+        })
+        id = vehicle.id as string
+        setVehicleId(id)
+      }
 
       // 2. Subir fotos de galería
-      if (form.galleryImages.length > 0) {
-        setPublishStep(1)
+      if (form.galleryImages.length > 0 && !uploaded.current.gallery) {
+        goTo(1)
         const fd = new FormData()
         form.galleryImages.forEach((f) => fd.append('images', f))
-        await api.post(`/upload/vehicles/${vehicle.id}/images`, fd, {
+        await api.post(`/upload/vehicles/${id}/images`, fd, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
+        uploaded.current.gallery = true
       }
 
       // 3. Subir fotos de reconstrucción 3D (guiadas + libres)
       const guidedFiles = form.reconstructionImages.filter((a) => a.file !== null).map((a) => a.file!)
       const allReconFiles = [...guidedFiles, ...form.freeImages]
-      if (allReconFiles.length > 0) {
-        setPublishStep(2)
+      if (allReconFiles.length > 0 && !uploaded.current.reconstruction) {
+        goTo(2)
         const fd = new FormData()
         allReconFiles.forEach((f) => fd.append('images', f))
-        await api.post(`/upload/vehicles/${vehicle.id}/reconstruction`, fd, {
+        await api.post(`/upload/vehicles/${id}/reconstruction`, fd, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
+        uploaded.current.reconstruction = true
       }
 
       // 4. Publicar vehículo
-      setPublishStep(3)
-      await api.patch(`/vehicles/${vehicle.id}/publish`)
+      goTo(3)
+      await api.patch(`/vehicles/${id}/publish`)
 
       setDone(true)
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Error al publicar. Intenta de nuevo.')
+      setError(describePublishError(err, publishStepRef.current))
     } finally {
       setPublishing(false)
     }
