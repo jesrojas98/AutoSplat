@@ -88,7 +88,7 @@ describe('JobsMaintenanceService.recover()', () => {
 })
 
 describe('JobsService.markFailed()', () => {
-  function build(updatedJobRows: any[]) {
+  function build(updatedJobRows: any[], completedModels = 0) {
     const calls: { table: string; payload: any }[] = []
     const supabase = {
       admin: {
@@ -102,6 +102,8 @@ describe('JobsService.markFailed()', () => {
             chain.then = (res: any, rej: any) => Promise.resolve({ error: null }).then(res, rej)
             return chain
           },
+          // conteo de modelos ya completados del vehículo
+          select: () => ({ eq: () => ({ eq: () => Promise.resolve({ count: completedModels }) }) }),
         })),
       },
     }
@@ -117,6 +119,12 @@ describe('JobsService.markFailed()', () => {
       { table: 'vehicle_3d_models', payload: expect.objectContaining({ status: 'failed' }) },
       { table: 'vehicles', payload: { has_3d_model: false } },
     ])
+  })
+
+  it('conserva el 3D del vehículo si ya tiene otro modelo completado', async () => {
+    const { service, calls } = build([{ id: 'j1' }], 1)
+    await service.markFailed({ id: 'j1', vehicle_id: 'v1', model_id: 'm1' }, 'falló')
+    expect(calls.map((c) => c.table)).toEqual(['processing_jobs', 'vehicle_3d_models'])
   })
 
   it('no toca modelo ni vehículo si el job ya había terminado', async () => {

@@ -157,10 +157,18 @@ def mark_job_failed(job_id: str, error_message: str) -> None:
                 json={"status": "failed", "error_message": message},
             ).raise_for_status()
         if job.get("vehicle_id"):
-            requests.patch(
-                f"{_url('vehicles')}?id=eq.{job['vehicle_id']}",
+            # Si el vehículo ya tiene otro modelo completado, se conserva su 3D
+            done = requests.get(
+                _url("vehicle_3d_models"),
                 headers=_headers(),
-                json={"has_3d_model": False},
-            ).raise_for_status()
+                params={"select": "id", "vehicle_id": f"eq.{job['vehicle_id']}", "status": "eq.completed", "limit": "1"},
+            )
+            done.raise_for_status()
+            if not done.json():
+                requests.patch(
+                    f"{_url('vehicles')}?id=eq.{job['vehicle_id']}",
+                    headers=_headers(),
+                    json={"has_3d_model": False},
+                ).raise_for_status()
     except Exception as exc:
         logger.warning("No se pudo actualizar modelo/vehículo del job %s: %s", job_id, exc)

@@ -32,14 +32,19 @@ export function Catalog() {
     try {
       const res = await vehiclesService.getAll({
         brand: brand || undefined,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        minPrice: minPrice ? Math.round(Number(minPrice)) : undefined,
+        maxPrice: maxPrice ? Math.round(Number(maxPrice)) : undefined,
         page: currentPage,
         limit: 12,
       })
       setVehicles(res.data)
       setTotal(res.total)
       setPages(res.pages)
+    } catch {
+      // filtro inválido o servidor caído: se muestra la lista vacía en vez de dejar la pantalla a medias
+      setVehicles([])
+      setTotal(0)
+      setPages(1)
     } finally {
       setLoading(false)
     }
