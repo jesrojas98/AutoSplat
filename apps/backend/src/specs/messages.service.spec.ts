@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing'
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { MessagesService } from '../messages/messages.service'
 import { SupabaseService } from '../supabase/supabase.service'
 
@@ -74,32 +75,86 @@ describe('MessagesService', () => {
   // ── sendMessage ───────────────────────────────────────────────────────────
 
   describe('sendMessage()', () => {
-    const dto = { receiver_id: 'user-2', vehicle_id: 'v1', content: '¿Está disponible?' }
+    const dto = { receiver_id: 'seller-1', vehicle_id: 'v1', content: '¿Está disponible?' }
+    let vehicleRow: { seller_id: string; status: string } | null
+    let priorMessages: number
+    let insertChain: any
 
-    it('envía el mensaje y lo retorna', async () => {
-      const sent = { id: 'm1', sender_id: 'user-1', ...dto, created_at: '2024-01-01', read_at: null }
-      supabase.admin.from.mockReturnValue(buildChain({ data: sent }))
+    beforeEach(() => {
+      vehicleRow = { seller_id: 'seller-1', status: 'published' }
+      priorMessages = 0
+      insertChain = buildChain({ data: { id: 'm1', content: dto.content } })
+      supabase.admin.from.mockImplementation((table: string) => {
+        if (table === 'vehicles') {
+          const c: any = {}
+          c.select = () => c
+          c.eq = () => c
+          c.maybeSingle = () => Promise.resolve({ data: vehicleRow })
+          return c
+        }
+        // messages: o bien conteo de mensajes previos, o bien el insert
+        const c: any = { insert: insertChain.insert, select: (_cols?: string, opts?: any) => {
+          if (opts?.head) {
+            const q: any = {}
+            q.eq = () => q
+            q.then = (res: any, rej: any) => Promise.resolve({ count: priorMessages }).then(res, rej)
+            return q
+          }
+          return insertChain
+        } }
+        return c
+      })
+    })
 
-      const result = await service.sendMessage('user-1', dto)
-
+    it('un comprador le escribe al vendedor de un aviso publicado y se retorna el mensaje', async () => {
+      const result = await service.sendMessage('buyer-1', dto)
       expect(result).toMatchObject({ id: 'm1', content: dto.content })
     })
 
     it('incluye sender_id en el insert', async () => {
-      const chain = buildChain({ data: { id: 'm1' } })
-      supabase.admin.from.mockReturnValue(chain)
-
-      await service.sendMessage('user-1', dto)
-
-      expect(chain.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ sender_id: 'user-1', ...dto }),
-      )
+      await service.sendMessage('buyer-1', dto)
+      expect(insertChain.insert).toHaveBeenCalledWith(expect.objectContaining({ sender_id: 'buyer-1', ...dto }))
     })
 
-    it('lanza error si Supabase devuelve error', async () => {
-      supabase.admin.from.mockReturnValue(buildChain({ data: null, error: { message: 'insert failed' } }))
+    it('no permite escribirse a uno mismo', async () => {
+      await expect(service.sendMessage('seller-1', dto)).rejects.toThrow(BadRequestException)
+    })
 
-      await expect(service.sendMessage('user-1', dto)).rejects.toThrow('insert failed')
+    it('rechaza un destinatario que no es el vendedor del vehículo', async () => {
+      await expect(
+        service.sendMessage('buyer-1', { ...dto, receiver_id: 'otro-usuario' }),
+      ).rejects.toThrow(ForbiddenException)
+      expect(insertChain.insert).not.toHaveBeenCalled()
+    })
+
+    it('404 si el vehículo no existe', async () => {
+      vehicleRow = null
+      await expect(service.sendMessage('buyer-1', dto)).rejects.toThrow(NotFoundException)
+    })
+
+    it('404 si el aviso no está publicado', async () => {
+      vehicleRow = { seller_id: 'seller-1', status: 'draft' }
+      await expect(service.sendMessage('buyer-1', dto)).rejects.toThrow(NotFoundException)
+    })
+
+    it('el vendedor puede responder a quien le escribió por ese vehículo', async () => {
+      priorMessages = 1
+      await expect(
+        service.sendMessage('seller-1', { ...dto, receiver_id: 'buyer-1' }),
+      ).resolves.toMatchObject({ id: 'm1' })
+    })
+
+    it('el vendedor no puede escribirle a alguien que no le escribió', async () => {
+      priorMessages = 0
+      await expect(
+        service.sendMessage('seller-1', { ...dto, receiver_id: 'buyer-1' }),
+      ).rejects.toThrow(ForbiddenException)
+      expect(insertChain.insert).not.toHaveBeenCalled()
+    })
+
+    it('lanza error si Supabase devuelve error al insertar', async () => {
+      insertChain = buildChain({ data: null, error: { message: 'insert failed' } })
+      await expect(service.sendMessage('buyer-1', dto)).rejects.toThrow('insert failed')
     })
   })
 

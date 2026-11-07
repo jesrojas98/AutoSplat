@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { SupabaseService } from '../supabase/supabase.service'
+import { UploadService } from '../upload/upload.service'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
 
 const VEHICLE_SELECT = `
@@ -24,9 +25,16 @@ export interface VehicleFilters {
   limit?: number
 }
 
+// Estados que cualquiera puede ver por id; borradores e inactivos solo su dueño y los admin
+const PUBLIC_STATUSES = ['published', 'sold']
+
+export interface Viewer { id: string; role?: string }
+
 @Injectable()
 export class VehiclesService {
-  constructor(private supabase: SupabaseService) {}
+  private readonly logger = new Logger(VehiclesService.name)
+
+  constructor(private supabase: SupabaseService, private uploads: UploadService) {}
 
   async findAll(filters: VehicleFilters = {}) {
     const { page = 1, limit = 12, search, brand, minPrice, maxPrice, minYear, maxYear, transmission, fuel_type, location } = filters
@@ -64,7 +72,7 @@ export class VehiclesService {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, viewer?: Viewer) {
     const { data, error } = await this.supabase.admin
       .from('vehicles')
       .select(VEHICLE_SELECT)
@@ -72,12 +80,18 @@ export class VehiclesService {
       .single()
     if (error || !data) throw new NotFoundException('Vehículo no encontrado')
 
-    // Incrementa vistas sin bloquear la respuesta
-    this.supabase.admin
-      .from('vehicles')
-      .update({ views_count: (data.views_count ?? 0) + 1 })
-      .eq('id', id)
-      .then(() => {})
+    // Borradores e inactivos no se filtran por id: solo los ve su dueño o un admin
+    const isOwner = !!viewer && (viewer.id === data.seller_id || viewer.role === 'admin')
+    if (!PUBLIC_STATUSES.includes(data.status) && !isOwner) throw new NotFoundException('Vehículo no encontrado')
+
+    // Incrementa vistas sin bloquear la respuesta (las del dueño no cuentan)
+    if (!isOwner) {
+      this.supabase.admin
+        .from('vehicles')
+        .update({ views_count: (data.views_count ?? 0) + 1 })
+        .eq('id', id)
+        .then(() => {})
+    }
 
     return data
   }
@@ -118,6 +132,11 @@ export class VehiclesService {
     if (userRole !== 'admin') await this.assertOwner(id, userId)
     const { error } = await this.supabase.admin.from('vehicles').delete().eq('id', id)
     if (error) throw new Error(error.message)
+
+    // Fotos en Cloudinary y modelo en Storage: se limpian sin bloquear ni hacer fallar el borrado
+    void this.uploads.deleteVehicleAssets(id).catch((err) =>
+      this.logger.warn(`Limpieza de archivos del vehículo ${id} falló: ${(err as Error).message}`),
+    )
     return { message: 'Vehículo eliminado' }
   }
 

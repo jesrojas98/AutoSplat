@@ -3,6 +3,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common'
 import { VehiclesController } from '../vehicles/vehicles.controller'
 import { VehiclesService } from '../vehicles/vehicles.service'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
+import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard'
 import { RateLimitGuard } from '../common/guards/rate-limit.guard'
 import { Reflector } from '@nestjs/core'
 
@@ -47,6 +48,8 @@ describe('VehiclesController', () => {
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: (ctx: any) => { ctx.switchToHttp().getRequest().user = mockUser; return true } })
+      .overrideGuard(OptionalJwtAuthGuard)
+      .useValue({ canActivate: () => true })
       .overrideGuard(RateLimitGuard)
       .useValue({ canActivate: () => true })
       .compile()
@@ -96,6 +99,7 @@ describe('VehiclesController', () => {
       vehiclesService.findOne.mockResolvedValue(mockVehicle as any)
 
       const result = await controller.findOne('v1')
+      expect(vehiclesService.findOne).toHaveBeenCalledWith('v1', undefined)
 
       expect(result).toMatchObject({ id: 'v1' })
     })

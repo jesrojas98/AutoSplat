@@ -74,9 +74,12 @@ export function Admin() {
 
   async function handleRoleChange(userId: string, role: Role) {
     setUpdatingUser(userId)
+    setApiError(null)
     try {
       const { data } = await api.patch<UserRow>(`/admin/users/${userId}/role`, { role })
       setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role: data.role } : u))
+    } catch (e: any) {
+      setApiError(e.response?.data?.message ?? 'No se pudo cambiar el rol')
     } finally {
       setUpdatingUser(null)
     }
@@ -84,9 +87,12 @@ export function Admin() {
 
   async function handleDeleteUser(user: UserRow) {
     setDeletingUser(user.id)
+    setApiError(null)
     try {
       await api.delete(`/admin/users/${user.id}`)
       setUsers((prev) => prev.filter((u) => u.id !== user.id))
+    } catch (e: any) {
+      setApiError(e.response?.data?.message ?? 'No se pudo eliminar el usuario')
     } finally {
       setDeletingUser(null)
       setConfirmDeleteUser(null)
@@ -95,9 +101,13 @@ export function Admin() {
 
   async function handleDeleteVehicle(vehicle: Vehicle) {
     setDeletingVehicle(vehicle.id)
+    setVehicleError(null)
     try {
       await vehiclesService.remove(vehicle.id)
       setVehicles((prev) => prev.filter((v) => v.id !== vehicle.id))
+      setConfirmDeleteVehicle(null)
+    } catch (e: any) {
+      setVehicleError(e.response?.data?.message ?? 'No se pudo eliminar el vehículo')
       setConfirmDeleteVehicle(null)
     } finally {
       setDeletingVehicle(null)

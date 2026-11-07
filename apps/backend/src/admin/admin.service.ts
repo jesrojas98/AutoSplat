@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { SupabaseService } from '../supabase/supabase.service'
 
-type Role = 'buyer' | 'seller' | 'admin'
+import type { Role } from './dto/update-role.dto'
 
 function normalizeRole(role: unknown): Role {
   return role === 'seller' || role === 'admin' ? role : 'buyer'
@@ -35,30 +35,39 @@ export class AdminService {
     }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }
 
-  async updateRole(targetId: string, role: 'buyer' | 'seller' | 'admin') {
+  async updateRole(actorId: string, targetId: string, role: Role) {
+    // Un admin no se quita el rol a sí mismo: evita quedarse sin administradores por un clic
+    if (actorId === targetId && role !== 'admin') {
+      throw new ForbiddenException('No puedes quitarte tu propio rol de administrador')
+    }
+
     // Obtener datos del usuario de Auth
     const { data: authUser, error: authErr } = await this.supabase.admin.auth.admin.getUserById(targetId)
     if (authErr || !authUser.user) throw new NotFoundException('Usuario no encontrado')
 
     const u = authUser.user
-    // Upsert en tabla users (por si no tiene fila aún)
-    await this.supabase.admin.from('users').upsert({
+    // La tabla users es la fuente de verdad del rol (upsert por si no tiene fila aún)
+    const { error: dbError } = await this.supabase.admin.from('users').upsert({
       id: targetId,
       email: u.email ?? '',
       name: u.user_metadata?.full_name ?? u.email?.split('@')[0] ?? 'Sin nombre',
       password_hash: '',
       role,
     })
+    if (dbError) throw new Error(dbError.message)
 
     // Sincronizar en user_metadata de Supabase Auth
-    await this.supabase.admin.auth.admin.updateUserById(targetId, {
+    const { error: metaError } = await this.supabase.admin.auth.admin.updateUserById(targetId, {
       user_metadata: { ...u.user_metadata, role },
     })
+    if (metaError) throw new Error(metaError.message)
 
     return { id: targetId, email: u.email, role }
   }
 
-  async deleteUser(targetId: string) {
+  async deleteUser(actorId: string, targetId: string) {
+    if (actorId === targetId) throw new ForbiddenException('No puedes eliminar tu propia cuenta desde el panel')
+
     // Eliminar de Supabase Auth (cascada elimina la fila de users por FK)
     const { error } = await this.supabase.admin.auth.admin.deleteUser(targetId)
     if (error) throw new NotFoundException('Usuario no encontrado o ya eliminado')

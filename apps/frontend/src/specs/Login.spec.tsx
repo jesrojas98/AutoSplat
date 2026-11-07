@@ -148,18 +148,16 @@ describe('Login', () => {
   describe('toggle contraseña', () => {
     it('cambia el tipo del input a text al hacer click en el ojo', () => {
       renderLogin()
-      const toggleBtn = document.querySelector('button[type="button"]:not([onClick])') as HTMLButtonElement
-      // El botón de toggle está al lado del input de contraseña
-      const visibilityBtn = screen.getByRole('button', { name: '' }) // material icon
-      // Más robusto: buscar el botón que contiene el span de visibility
-      const buttons = screen.getAllByRole('button')
-      const eyeBtn = buttons.find(b => b.querySelector('span')?.textContent?.includes('visibility'))
+      expect(document.querySelector('input[type="password"]')).toBeTruthy()
 
-      if (eyeBtn) {
-        fireEvent.click(eyeBtn)
-        const passInput = document.querySelector('input[type="text"]')
-        expect(passInput).toBeTruthy()
-      }
+      // El botón del ojo es un botón con un ícono de Material Symbols ("visibility")
+      const eyeBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('visibility'))
+      expect(eyeBtn).toBeTruthy()
+
+      fireEvent.click(eyeBtn!)
+
+      expect(document.querySelector('input[type="password"]')).toBeNull()
+      expect(document.querySelector('input[type="text"]')).toBeTruthy()
     })
   })
 

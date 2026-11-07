@@ -14,7 +14,7 @@ setInterval(() => {
   for (const [key, record] of store.entries()) {
     if (record.resetAt < now) store.delete(key)
   }
-}, 5 * 60 * 1000)
+}, 5 * 60 * 1000).unref()
 
 export const RATE_LIMIT_KEY = 'rateLimit'
 

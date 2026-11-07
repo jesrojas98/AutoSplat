@@ -1,7 +1,9 @@
-import { Controller, Get, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common'
+import { Controller, Get, Patch, Delete, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
 import { AdminGuard } from '../common/guards/admin.guard'
+import { CurrentUser } from '../common/decorators/current-user.decorator'
 import { AdminService } from './admin.service'
+import { UpdateRoleDto } from './dto/update-role.dto'
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -20,14 +22,15 @@ export class AdminController {
 
   @Patch('users/:id/role')
   updateRole(
-    @Param('id') id: string,
-    @Body('role') role: 'buyer' | 'seller' | 'admin',
+    @CurrentUser() actor: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateRoleDto,
   ) {
-    return this.admin.updateRole(id, role)
+    return this.admin.updateRole(actor.id, id, body.role)
   }
 
   @Delete('users/:id')
-  deleteUser(@Param('id') id: string) {
-    return this.admin.deleteUser(id)
+  deleteUser(@CurrentUser() actor: { id: string }, @Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.deleteUser(actor.id, id)
   }
 }

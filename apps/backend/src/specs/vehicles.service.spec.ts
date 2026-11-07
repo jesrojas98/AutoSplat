@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { NotFoundException, ForbiddenException } from '@nestjs/common'
 import { VehiclesService } from '../vehicles/vehicles.service'
 import { SupabaseService } from '../supabase/supabase.service'
+import { UploadService } from '../upload/upload.service'
 
 function buildChain(result: { data?: any; error?: any; count?: any } = {}) {
   const r = { data: null, error: null, count: null, ...result }
@@ -38,14 +39,17 @@ const mockVehicle = {
 describe('VehiclesService', () => {
   let service: VehiclesService
   let supabase: { admin: { from: jest.Mock }; client: { from: jest.Mock } }
+  let uploads: { deleteVehicleAssets: jest.Mock }
 
   beforeEach(async () => {
     supabase = { admin: { from: jest.fn() }, client: { from: jest.fn() } }
+    uploads = { deleteVehicleAssets: jest.fn().mockResolvedValue(undefined) }
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         VehiclesService,
         { provide: SupabaseService, useValue: supabase },
+        { provide: UploadService, useValue: uploads },
       ],
     }).compile()
 
@@ -197,6 +201,48 @@ describe('VehiclesService', () => {
     })
   })
 
+  describe('findOne() — visibilidad por estado', () => {
+    const draft = { ...mockVehicle, status: 'draft', seller_id: 'user-1' }
+
+    it('un anónimo no ve un borrador (404)', async () => {
+      supabase.admin.from.mockReturnValue(buildChain({ data: draft }))
+      await expect(service.findOne('v1')).rejects.toThrow(NotFoundException)
+    })
+
+    it('otro usuario tampoco ve el borrador', async () => {
+      supabase.admin.from.mockReturnValue(buildChain({ data: draft }))
+      await expect(service.findOne('v1', { id: 'otro', role: 'seller' })).rejects.toThrow(NotFoundException)
+    })
+
+    it('un aviso inactivo no es público', async () => {
+      supabase.admin.from.mockReturnValue(buildChain({ data: { ...draft, status: 'inactive' } }))
+      await expect(service.findOne('v1')).rejects.toThrow(NotFoundException)
+    })
+
+    it('el dueño ve su borrador', async () => {
+      supabase.admin.from.mockReturnValue(buildChain({ data: draft }))
+      await expect(service.findOne('v1', { id: 'user-1', role: 'seller' })).resolves.toMatchObject({ id: 'v1' })
+    })
+
+    it('un admin ve cualquier borrador', async () => {
+      supabase.admin.from.mockReturnValue(buildChain({ data: draft }))
+      await expect(service.findOne('v1', { id: 'admin-1', role: 'admin' })).resolves.toMatchObject({ id: 'v1' })
+    })
+
+    it('un aviso vendido sigue siendo visible para todos', async () => {
+      supabase.admin.from
+        .mockReturnValueOnce(buildChain({ data: { ...mockVehicle, status: 'sold' } }))
+        .mockReturnValueOnce(buildChain({ data: null }))
+      await expect(service.findOne('v1')).resolves.toMatchObject({ status: 'sold' })
+    })
+
+    it('las visitas del propio dueño no suman views_count', async () => {
+      supabase.admin.from.mockReturnValue(buildChain({ data: mockVehicle }))
+      await service.findOne('v1', { id: 'user-1', role: 'seller' })
+      expect(supabase.admin.from).toHaveBeenCalledTimes(1)
+    })
+  })
+
   // ── findByUser ────────────────────────────────────────────────────────────
 
   describe('findByUser()', () => {
@@ -293,6 +339,35 @@ describe('VehiclesService', () => {
       supabase.admin.from.mockReturnValue(buildChain({ data: { seller_id: 'otro-user' } }))
 
       await expect(service.remove('v1', 'user-1')).rejects.toThrow(ForbiddenException)
+      expect(uploads.deleteVehicleAssets).not.toHaveBeenCalled()
+    })
+
+    it('limpia las fotos y el modelo del vehículo tras borrarlo', async () => {
+      supabase.admin.from
+        .mockReturnValueOnce(buildChain({ data: { seller_id: 'user-1' } }))
+        .mockReturnValueOnce(buildChain({ data: null, error: null }))
+
+      await service.remove('v1', 'user-1')
+
+      expect(uploads.deleteVehicleAssets).toHaveBeenCalledWith('v1')
+    })
+
+    it('si la limpieza de archivos falla, el vehículo igual se da por eliminado', async () => {
+      uploads.deleteVehicleAssets.mockRejectedValue(new Error('cloudinary caído'))
+      supabase.admin.from
+        .mockReturnValueOnce(buildChain({ data: { seller_id: 'user-1' } }))
+        .mockReturnValueOnce(buildChain({ data: null, error: null }))
+
+      await expect(service.remove('v1', 'user-1')).resolves.toEqual({ message: 'Vehículo eliminado' })
+    })
+
+    it('no limpia archivos si falló el borrado en la base de datos', async () => {
+      supabase.admin.from
+        .mockReturnValueOnce(buildChain({ data: { seller_id: 'user-1' } }))
+        .mockReturnValueOnce(buildChain({ data: null, error: { message: 'fk' } }))
+
+      await expect(service.remove('v1', 'user-1')).rejects.toThrow('fk')
+      expect(uploads.deleteVehicleAssets).not.toHaveBeenCalled()
     })
   })
 

@@ -23,6 +23,7 @@ export function VehicleDetail() {
   const [message, setMessage] = useState('')
   const [sendingMsg, setSendingMsg] = useState(false)
   const [msgSent, setMsgSent] = useState(false)
+  const [msgError, setMsgError] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -43,9 +44,14 @@ export function VehicleDetail() {
   async function toggleFavorite() {
     if (!user) { navigate('/login'); return }
     setSavingFav(true)
-    const res = await favoritesService.toggle(id!)
-    setSaved(res.saved)
-    setSavingFav(false)
+    try {
+      const res = await favoritesService.toggle(id!)
+      setSaved(res.saved)
+    } catch {
+      // el corazón queda como estaba; el usuario puede reintentar
+    } finally {
+      setSavingFav(false)
+    }
   }
 
   async function sendMessage(e: React.FormEvent) {
@@ -53,9 +59,16 @@ export function VehicleDetail() {
     if (!user) { navigate('/login'); return }
     if (!message.trim()) return
     setSendingMsg(true)
-    await api.post('/messages', { receiver_id: vehicle!.seller_id, vehicle_id: id, content: message })
-    setMsgSent(true)
-    setSendingMsg(false)
+    setMsgError('')
+    try {
+      await api.post('/messages', { receiver_id: vehicle!.seller_id, vehicle_id: id, content: message })
+      setMsgSent(true)
+    } catch (err: any) {
+      const detail = err.response?.data?.message
+      setMsgError(typeof detail === 'string' ? detail : 'No se pudo enviar el mensaje. Inténtalo de nuevo.')
+    } finally {
+      setSendingMsg(false)
+    }
   }
 
   if (loading) return (
@@ -227,6 +240,7 @@ export function VehicleDetail() {
                   <textarea value={message} onChange={(e) => setMessage(e.target.value)}
                     placeholder="Hola, me interesa este vehículo..." rows={3} required
                     className="w-full bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/30 rounded-lg px-3 py-2 text-sm text-[var(--color-on-surface)] outline-none focus:border-[var(--color-primary)]/50 placeholder:text-[var(--color-outline)] resize-none" />
+                  {msgError && <p className="text-[var(--color-secondary)] text-sm">{msgError}</p>}
                   <button type="submit" disabled={sendingMsg}
                     className="glow-primary w-full py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all flex items-center justify-center gap-2 disabled:opacity-60">
                     <span className="material-symbols-outlined text-base">{sendingMsg ? 'progress_activity' : 'send'}</span>

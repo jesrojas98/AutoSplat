@@ -36,7 +36,10 @@ export function AuthCallback() {
         return
       }
 
-      const role = pendingRole ?? normalizeUserRole(user.user_metadata?.role)
+      // Un alta nueva solo puede ser comprador o vendedor: la metadata la edita el propio usuario,
+      // así que un "admin" ahí no cuenta (los admin se asignan desde el panel o la base de datos).
+      const metaRole = normalizeUserRole(user.user_metadata?.role)
+      const role: Extract<UserRole, 'buyer' | 'seller'> = pendingRole ?? (metaRole === 'seller' ? 'seller' : 'buyer')
       await supabase.from('users').upsert({
         id: user.id,
         email: user.email!,

@@ -2,7 +2,9 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } f
 import { VehiclesService } from './vehicles.service'
 import { VehicleFiltersDto } from './dto/vehicle-filters.dto'
 import { CreateVehicleDto } from './dto/create-vehicle.dto'
+import { UpdateVehicleDto } from './dto/update-vehicle.dto'
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
+import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard'
 import { CurrentUser } from '../common/decorators/current-user.decorator'
 import { RateLimit } from '../common/guards/rate-limit.guard'
 
@@ -22,8 +24,9 @@ export class VehiclesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.vehicles.findOne(id)
+  @UseGuards(OptionalJwtAuthGuard)
+  findOne(@Param('id') id: string, @CurrentUser() user?: { id: string; role?: string }) {
+    return this.vehicles.findOne(id, user)
   }
 
   @Post()
@@ -38,7 +41,7 @@ export class VehiclesController {
   update(
     @Param('id') id: string,
     @CurrentUser() user: { id: string; role: string },
-    @Body() dto: Partial<CreateVehicleDto> & { status?: string },
+    @Body() dto: UpdateVehicleDto,
   ) {
     return this.vehicles.update(id, user.id, dto, user.role)
   }

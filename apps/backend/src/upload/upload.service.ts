@@ -1,13 +1,16 @@
-import { Injectable, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary'
 import { Readable } from 'stream'
+import { SupabaseService } from '../supabase/supabase.service'
 
 const UPLOAD_CONCURRENCY = 8
 
 @Injectable()
 export class UploadService implements OnModuleInit {
-  constructor(private config: ConfigService) {}
+  private readonly logger = new Logger(UploadService.name)
+
+  constructor(private config: ConfigService, private supabase: SupabaseService) {}
 
   onModuleInit() {
     cloudinary.config({
@@ -58,6 +61,35 @@ export class UploadService implements OnModuleInit {
 
   async deleteImage(publicId: string) {
     return cloudinary.uploader.destroy(publicId)
+  }
+
+  /**
+   * Borra lo que un vehículo dejó fuera de la base de datos: sus fotos en Cloudinary (galería y
+   * fotos 3D comparten el prefijo autosplat/vehicles/<id>/) y su modelo en Supabase Storage.
+   * No lanza: es limpieza posterior a borrar el vehículo, y un fallo aquí no debe deshacer nada.
+   */
+  async deleteVehicleAssets(vehicleId: string): Promise<void> {
+    const bucket = this.config.get<string>('STORAGE_BUCKET') ?? 'models'
+    const folder = `vehicles/${vehicleId}`
+
+    const results = await Promise.allSettled([
+      cloudinary.api.delete_resources_by_prefix(`autosplat/${folder}/`),
+      (async () => {
+        const storage = this.supabase.admin.storage.from(bucket)
+        const { data: files, error } = await storage.list(folder)
+        if (error) throw new Error(error.message)
+        if (files?.length) {
+          const { error: removeError } = await storage.remove(files.map((f) => `${folder}/${f.name}`))
+          if (removeError) throw new Error(removeError.message)
+        }
+      })(),
+    ])
+
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        this.logger.warn(`No se pudo limpiar ${i === 0 ? 'Cloudinary' : 'Storage'} del vehículo ${vehicleId}: ${r.reason?.message ?? r.reason}`)
+      }
+    })
   }
 
   private streamUpload(buffer: Buffer, options: object): Promise<UploadApiResponse> {

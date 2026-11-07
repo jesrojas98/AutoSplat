@@ -76,3 +76,6 @@ coverage/
 # Documentos de planificación local
 AUTOSPLAT.md
 /UI/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

@@ -4,13 +4,19 @@ import type { User } from '@supabase/supabase-js'
 
 // ── Mock del cliente Supabase ─────────────────────────────────────────────────
 
-const mockSignInWithPassword = vi.fn()
-const mockSignUp = vi.fn()
-const mockSignOut = vi.fn()
-const mockSignInWithOAuth = vi.fn()
-const mockGetSession = vi.fn()
-const mockOnAuthStateChange = vi.fn()
-const mockFrom = vi.fn()
+// vi.mock se hoistea al inicio del archivo: los mocks deben crearse con vi.hoisted para existir antes
+const {
+  mockSignInWithPassword, mockSignUp, mockSignOut, mockSignInWithOAuth,
+  mockGetSession, mockOnAuthStateChange, mockFrom,
+} = vi.hoisted(() => ({
+  mockSignInWithPassword: vi.fn(),
+  mockSignUp: vi.fn(),
+  mockSignOut: vi.fn(),
+  mockSignInWithOAuth: vi.fn(),
+  mockGetSession: vi.fn(),
+  mockOnAuthStateChange: vi.fn(),
+  mockFrom: vi.fn(),
+}))
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
