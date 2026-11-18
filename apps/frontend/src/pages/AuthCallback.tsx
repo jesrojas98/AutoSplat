@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { normalizeUserRole, type UserRole } from '@/store/auth.store'
+import { normalizeUserRole, createUserProfile, type UserRole } from '@/store/auth.store'
 import type { User } from '@supabase/supabase-js'
 
 export function AuthCallback() {
@@ -38,19 +38,18 @@ export function AuthCallback() {
 
       // Un alta nueva solo puede ser comprador o vendedor: la metadata la edita el propio usuario,
       // así que un "admin" ahí no cuenta (los admin se asignan desde el panel o la base de datos).
-      const metaRole = normalizeUserRole(user.user_metadata?.role)
-      const role: Extract<UserRole, 'buyer' | 'seller'> = pendingRole ?? (metaRole === 'seller' ? 'seller' : 'buyer')
-      await supabase.from('users').upsert({
-        id: user.id,
-        email: user.email!,
-        name: user.user_metadata?.full_name ?? user.email!.split('@')[0],
-        password_hash: '',
-        role,
-      })
-      // Persistir el rol en user_metadata para que getUserRole() lo lea correctamente
-      if (pendingRole || user.user_metadata?.role !== role) {
-        await supabase.auth.updateUser({ data: { role } })
-      }
+      const rawMeta = user.user_metadata?.role
+      const metaRole: Extract<UserRole, 'buyer' | 'seller'> | null =
+        rawMeta === 'buyer' || rawMeta === 'seller' ? rawMeta : null
+      const role = pendingRole ?? metaRole
+
+      // Sin rol elegido (p. ej. entró con Google desde /login, o el navegador perdió el
+      // localStorage en la redirección) NO se asume "comprador": antes eso convertía en
+      // compradores a quienes querían vender. Se le pregunta.
+      if (!role) { navigate('/auth/role', { replace: true }); return }
+
+      // Si falla el alta, el backend crea la fila con el rol de la metadata en la primera llamada
+      try { await createUserProfile(user, role) } catch { /* no bloquear el acceso */ }
       navigate('/dashboard')
     }
 

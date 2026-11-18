@@ -19,6 +19,7 @@ const Admin = lazy(() => import('@/pages/Admin').then((m) => ({ default: m.Admin
 const LegalPage = lazy(() => import('@/pages/LegalPage').then((m) => ({ default: m.LegalPage })))
 const NotFound = lazy(() => import('@/pages/NotFound').then((m) => ({ default: m.NotFound })))
 const Support = lazy(() => import('@/pages/Support').then((m) => ({ default: m.Support })))
+const ChooseRole = lazy(() => import('@/pages/ChooseRole').then((m) => ({ default: m.ChooseRole })))
 
 export function AppRouter() {
   return (
@@ -30,6 +31,7 @@ export function AppRouter() {
         <Route path="/vehicles/:id" element={<VehicleDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/auth/role" element={<AuthRoute><ChooseRole /></AuthRoute>} />
         <Route path="/publish" element={<SellerRoute><PublishVehicle /></SellerRoute>} />
         <Route path="/vehicles/:id/edit" element={<AuthRoute><EditVehicle /></AuthRoute>} />
         <Route path="/dashboard" element={<AuthRoute><Dashboard /></AuthRoute>} />

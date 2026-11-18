@@ -75,6 +75,22 @@ export function normalizeUserRole(role: unknown): UserRole {
   return role === 'seller' || role === 'admin' ? role : 'buyer'
 }
 
+// Alta de un usuario nuevo (OAuth): fila en users + rol persistido en user_metadata
+// para que getUserRole() lo lea correctamente.
+export async function createUserProfile(user: User, role: Extract<UserRole, 'buyer' | 'seller'>) {
+  const { error } = await supabase.from('users').upsert({
+    id: user.id,
+    email: user.email!,
+    name: user.user_metadata?.full_name ?? user.email!.split('@')[0],
+    password_hash: '',
+    role,
+  })
+  if (error) throw error
+  if (user.user_metadata?.role !== role) {
+    await supabase.auth.updateUser({ data: { role } })
+  }
+}
+
 // Helper para leer el rol desde el user de Supabase
 export function getUserRole(user: User | null): UserRole {
   return normalizeUserRole(user?.user_metadata?.role)

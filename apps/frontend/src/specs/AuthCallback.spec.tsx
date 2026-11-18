@@ -88,13 +88,22 @@ describe('AuthCallback — el rol de la tabla users manda', () => {
     expect(mockUpdateUser).toHaveBeenCalledWith({ data: { role: 'seller' } })
   })
 
-  it('un usuario nuevo sin rol elegido queda como comprador', async () => {
+  it('un usuario nuevo sin rol elegido NO se da de alta como comprador: se le pregunta', async () => {
     state.user = makeUser()
 
     render(<AuthCallback />)
 
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/auth/role', { replace: true }))
+    expect(state.upsert).not.toHaveBeenCalled()
+  })
+
+  it('un usuario nuevo con metadata "seller" y sin rol pendiente queda como vendedor', async () => {
+    state.user = makeUser('seller')
+
+    render(<AuthCallback />)
+
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
-    expect(state.upsert).toHaveBeenCalledWith(expect.objectContaining({ role: 'buyer' }))
+    expect(state.upsert).toHaveBeenCalledWith(expect.objectContaining({ role: 'seller' }))
   })
 
   it('nunca da de alta a un usuario nuevo como admin aunque su metadata lo diga', async () => {
@@ -102,9 +111,8 @@ describe('AuthCallback — el rol de la tabla users manda', () => {
 
     render(<AuthCallback />)
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
-    expect(state.upsert).toHaveBeenCalledWith(expect.objectContaining({ role: 'buyer' }))
-    expect(mockUpdateUser).toHaveBeenCalledWith({ data: { role: 'buyer' } })
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/auth/role', { replace: true }))
+    expect(state.upsert).not.toHaveBeenCalled()
   })
 
   it('si no se puede consultar el rol, no escribe nada y sigue al dashboard', async () => {

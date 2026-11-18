@@ -26,16 +26,37 @@ export class JwtAuthGuard implements CanActivate {
 
     // user_metadata lo puede editar el propio usuario con auth.updateUser, así que el rol
     // se lee de la tabla users (la misma fuente que usa AdminGuard).
-    const { data: row } = await this.supabase.admin
+    const { data: row, error: rowError } = await this.supabase.admin
       .from('users')
       .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
+    let role = normalizeRole(row?.role)
+
+    // Sin fila en users (p. ej. registro por email con confirmación pendiente: el insert del
+    // frontend corre sin sesión y RLS lo rechaza) el usuario quedaba como "buyer" aunque se
+    // hubiera registrado como vendedor. Se crea la fila con el rol que eligió al registrarse;
+    // solo buyer/seller (el insert propio ya lo permite RLS), nunca admin.
+    if (!row && !rowError) {
+      const metaRole = user.user_metadata?.role
+      role = metaRole === 'seller' ? 'seller' : 'buyer'
+      await this.supabase.admin.from('users').upsert(
+        {
+          id: user.id,
+          email: user.email ?? '',
+          name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Sin nombre',
+          password_hash: '',
+          role,
+        },
+        { onConflict: 'id', ignoreDuplicates: true },
+      )
+    }
+
     req.user = {
       id: user.id,
       email: user.email ?? '',
-      role: normalizeRole(row?.role),
+      role,
     }
 
     return true
