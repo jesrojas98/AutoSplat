@@ -9,15 +9,24 @@ interface Props {
 type Phase = 'intro' | 'scan' | 'busy' | 'between'
 type Sensor = 'unknown' | 'ok' | 'none'
 
+// Tres alturas, como recomiendan las guías de fotogrametría / Gaussian Splatting: la vuelta baja cubre ruedas,
+// zócalos y paragolpes, que con dos vueltas quedaban casi sin vistas (y ahí aparecían manchas y restos).
+// Orden: primero las más importantes, por si el usuario corta antes.
 const PASSES = [
-  { id: 'mid', short: 'CINTURA', title: 'Pasada 1 de 2', hint: 'Teléfono a la altura de la cintura, apuntando al centro del auto.' },
-  { id: 'high', short: 'HOMBRO', title: 'Pasada 2 de 2', hint: 'Teléfono a la altura del hombro, inclinado un poco hacia abajo.' },
+  { id: 'mid', short: 'CINTURA', hint: 'Teléfono a la altura de la cintura, apuntando al centro del auto.' },
+  { id: 'high', short: 'HOMBRO', hint: 'Teléfono a la altura del hombro, inclinado un poco hacia abajo.' },
+  { id: 'low', short: 'RODILLA', hint: 'Teléfono a la altura de la rodilla, apuntando al centro del auto.' },
 ] as const
 
-const SHOTS_PER_PASS = 24
+// Una foto cada 10° (antes 15°): más solapamiento entre fotos vecinas (las guías piden 70–80 %) y vistas
+// intermedias más cercanas, que es lo que el visor muestra al girar el auto.
+const SHOTS_PER_PASS = 36
 const STEP_DEG = 360 / SHOTS_PER_PASS
-const CAPTURE_DEBOUNCE_MS = 350
+const CAPTURE_DEBOUNCE_MS = 300
 const MAX_DEG_PER_SEC = 55 // más rápido que esto sale movida la foto
+// En cada disparo se miran varios fotogramas seguidos y se guarda el más nítido (el que no salió movido)
+const BURST_FRAMES = 3
+const BURST_GAP_MS = 70
 
 // Colores fijos: el visor de cámara es oscuro en ambos temas.
 const ACCENT = '#b4c5ff'
@@ -37,6 +46,43 @@ function compassHeading(alpha: number, beta: number, gamma: number): number {
   return h / d
 }
 
+const SHARP_W = 240
+
+/**
+ * Nitidez del fotograma actual: varianza del laplaciano (medida estándar de desenfoque) sobre una copia
+ * reducida de la zona central, donde está el auto. Más alto = más nítido. Cuesta ~1 ms.
+ */
+function frameSharpness(video: HTMLVideoElement, small: HTMLCanvasElement): number {
+  const w = SHARP_W
+  const h = Math.max(2, Math.round((w * video.videoHeight) / video.videoWidth))
+  small.width = w
+  small.height = h
+  const ctx = small.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return 0
+  ctx.drawImage(video, 0, 0, w, h)
+  const x0 = Math.round(w * 0.15), x1 = Math.round(w * 0.85)
+  const y0 = Math.round(h * 0.2), y1 = Math.round(h * 0.8)
+  const { data } = ctx.getImageData(0, 0, w, h)
+  const gray = (x: number, y: number) => {
+    const i = (y * w + x) * 4
+    return 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+  }
+  let sum = 0, sumSq = 0, n = 0
+  for (let y = Math.max(1, y0); y < Math.min(h - 1, y1); y++) {
+    for (let x = Math.max(1, x0); x < Math.min(w - 1, x1); x++) {
+      const lap = gray(x - 1, y) + gray(x + 1, y) + gray(x, y - 1) + gray(x, y + 1) - 4 * gray(x, y)
+      sum += lap
+      sumSq += lap * lap
+      n++
+    }
+  }
+  if (n === 0) return 0
+  const mean = sum / n
+  return sumSq / n - mean * mean
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 function signedDelta(from: number, to: number): number {
   return ((to - from + 540) % 360) - 180
 }
@@ -52,6 +98,8 @@ function sectorName(deg: number): string {
 export function GuidedCameraCapture({ onCapture, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const sharpCanvasRef = useRef<HTMLCanvasElement>(null)
+  const capturingRef = useRef(false)
   const streamRef = useRef<MediaStream | null>(null)
 
   const [phase, setPhaseState] = useState<Phase>('intro')
@@ -123,14 +171,17 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
     onCaptureRef.current(filesRef.current)
   }, [])
 
-  const captureFrame = useCallback(() => {
+  const captureFrame = useCallback(async () => {
     const video = videoRef.current
     const canvas = canvasRef.current
-    if (!video || !canvas || video.videoWidth === 0) return
+    const small = sharpCanvasRef.current
+    if (!video || !canvas || !small || video.videoWidth === 0 || capturingRef.current) return
 
-    // Se reserva el número de foto y se corta el disparo antes del toBlob asíncrono
+    // Se reserva el número de foto y se corta el disparo antes de la parte asíncrona
+    capturingRef.current = true
     const shotIndex = shotsRef.current
-    const passId = PASSES[passIndexRef.current].id
+    const passIndex = passIndexRef.current
+    const passId = PASSES[passIndex].id
     const nextShot = shotIndex + 1
     const passDone = nextShot >= SHOTS_PER_PASS
     lastCaptureTimeRef.current = Date.now()
@@ -140,17 +191,27 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    if (!ctx) { capturingRef.current = false; return }
+
+    // Ráfaga corta: se queda el fotograma más nítido (al caminar, algunos salen movidos)
+    let best = -1
+    for (let i = 0; i < BURST_FRAMES; i++) {
+      if (i > 0) await wait(BURST_GAP_MS)
+      const score = frameSharpness(video, small)
+      if (score > best) {
+        best = score
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      }
+    }
 
     canvas.toBlob((blob) => {
       if (blob) {
-        filesRef.current = [
-          ...filesRef.current,
-          new File([blob], `guided-${passId}-${String(shotIndex).padStart(2, '0')}.jpg`, { type: 'image/jpeg' }),
-        ]
+        const name = `guided-${passIndex + 1}${passId}-${String(shotIndex).padStart(2, '0')}.jpg`
+        filesRef.current = [...filesRef.current, new File([blob], name, { type: 'image/jpeg' })]
         setTotalShots(filesRef.current.length)
       }
+      capturingRef.current = false
+      lastCaptureTimeRef.current = Date.now()
       setShotsState(nextShot)
       setFlash(true)
       setTimeout(() => setFlash(false), 140)
@@ -160,7 +221,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
         if (passIndexRef.current + 1 < PASSES.length) setPhase('between')
         else finish()
       }
-    }, 'image/jpeg', 0.9)
+    }, 'image/jpeg', 0.92)
   }, [finish])
 
   // ---- Giroscopio / brújula ----
@@ -255,6 +316,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
       <div className="relative flex-1 min-h-0 overflow-hidden">
         <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
         <canvas ref={canvasRef} className="hidden" />
+        <canvas ref={sharpCanvasRef} className="hidden" />
 
         {flash && <div className="absolute inset-0 bg-white pointer-events-none" style={{ opacity: 0.85 }} />}
 
@@ -300,7 +362,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
           <div className="flex-1 min-w-0 text-center">
-            <p className="label-caps text-white text-[11px] truncate">{pass.title} · {pass.short}</p>
+            <p className="label-caps text-white text-[11px] truncate">Pasada {passIndex + 1} de {PASSES.length} · {pass.short}</p>
           </div>
           <div className="shrink-0 min-w-10 h-10 px-3 rounded-full bg-black/50 border border-white/25 flex items-center justify-center">
             <span className="label-caps text-[11px] font-bold" style={{ color: ACCENT }}>{totalShots}/{totalTarget}</span>
@@ -358,7 +420,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
                   {[
                     'Párate frente al auto, a unos 3 metros, con todo el auto dentro del marco.',
                     'Camina hacia tu izquierda rodeando el auto, mirando siempre al centro.',
-                    'Haz 2 vueltas: cintura y hombro. La app toma las fotos sola mientras caminas.',
+                    'Haz 3 vueltas lentas: cintura, hombro y rodilla. La app toma las fotos sola mientras caminas.',
                   ].map((t, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: ACCENT_STRONG }}>{i + 1}</span>
@@ -393,8 +455,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
               <span className="material-symbols-outlined mb-2" style={{ fontSize: 40, color: ACCENT }}>check_circle</span>
               <p className="label-caps text-white mb-2">PASADA {passIndex + 1} COMPLETA</p>
               <p className="text-white/80 text-sm leading-snug mb-5">
-                Ahora levanta el teléfono a la altura del hombro, inclinado un poco hacia abajo, y repite el
-                recorrido desde el frente del auto.
+                {PASSES[Math.min(passIndex + 1, PASSES.length - 1)].hint} Repite el recorrido desde el frente del auto.
               </p>
               <button
                 type="button"
@@ -496,7 +557,7 @@ function Radar({ shots, angle, showMarker, intro }: { shots: number; angle: numb
             key={i}
             cx={p.x}
             cy={p.y}
-            r={next ? 3.6 : 2.8}
+            r={next ? 3.2 : 2.3}
             fill={done ? ACCENT : next ? '#fff' : 'rgba(255,255,255,0.28)'}
             className={next && !intro ? 'animate-pulse' : undefined}
           />

@@ -18,8 +18,10 @@ logger = logging.getLogger(__name__)
 _MIN_REGISTERED_FRAMES = 8
 _MIN_REGISTERED_RATIO = 0.3
 
-# Por encima de este número de imágenes el matching exhaustivo (N² parejas) se vuelve lento
-_EXHAUSTIVE_MAX_IMAGES = 100
+# Por encima de este número de imágenes el matching exhaustivo (N² parejas) se vuelve lento. La captura guiada
+# son 3 vueltas × 36 fotos = 108: deben ir por exhaustivo, porque el "sequential" asume fotogramas de un video
+# y no une las distintas vueltas entre sí (ni el final de cada vuelta con su comienzo).
+_EXHAUSTIVE_MAX_IMAGES = 160
 
 
 def run_colmap(images_dir: Path, dest_dir: Path) -> Path:
