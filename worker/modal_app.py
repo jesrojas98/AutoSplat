@@ -8,6 +8,13 @@ La URL del webhook queda en:
     https://<org>--autosplat-worker-process-job.modal.run
 
 Configurar en el backend como MODAL_WEBHOOK_URL.
+
+Arquitectura:
+    backend ──POST──▶ process_job (webhook, CPU, responde al instante)
+                          └─ .spawn() ──▶ run_job (GPU T4, hasta 2 h, independiente del HTTP)
+
+El pipeline NO corre dentro de la petición del webhook: Modal cancela una petición web cuyo cliente
+se desconectó (el backend corta a los 10 s) a los ~2 minutos, y eso mataba el entrenamiento a medias.
 """
 import sys
 from pathlib import Path
@@ -45,26 +52,16 @@ app = modal.App("autosplat-worker", image=image, secrets=secrets)
     memory=16384,        # 16 GB RAM
     cpu=4,
 )
-@modal.fastapi_endpoint(method="POST")
-def process_job(body: dict) -> dict:
+def run_job(job_id: str, vehicle_id: str) -> dict:
     """
-    Webhook HTTP que dispara el pipeline de reconstrucción 3D.
+    Ejecuta el pipeline de reconstrucción 3D de un job. Se lanza con .spawn() desde el webhook,
+    así que su vida no depende de la conexión HTTP del backend.
 
-    Body esperado:
-        { "job_id": "uuid", "vehicle_id": "uuid", "secret": "<MODAL_WEBHOOK_SECRET>" }
-
-    Si MODAL_WEBHOOK_SECRET está definido en el secret de Modal, el body debe
-    traer el mismo valor; así solo el backend puede disparar el pipeline.
-
-    Retorna:
-        { "status": "ok" | "error", "message": "..." }
-        HTTP 500 si el pipeline falla.
+    Lanza RuntimeError si el pipeline falla (el detalle queda en processing_jobs.error_message),
+    para que el panel de Modal lo muestre como fallido.
     """
-    import hmac
     import os
     import logging
-
-    from fastapi import HTTPException
 
     # Agregar el directorio del worker al path
     sys.path.insert(0, "/worker/src")
@@ -76,26 +73,19 @@ def process_job(body: dict) -> dict:
     # afecte al Python 3.11 que ejecuta esta función (su user-site, lib/python3.11, no existe).
     os.environ["PYTHONUSERBASE"] = "/home/user/.local"
 
+    # La imagen trae TORCH_CUDA_ARCH_LIST=8.9+PTX y gsplat compila sus kernels CUDA para eso: en la
+    # T4 (7.5) el entrenamiento falla con "no kernel image is available". Se fija la arquitectura real.
+    from steps.hardware import cuda_arch_list
+
+    arch = cuda_arch_list()
+    if arch:
+        os.environ["TORCH_CUDA_ARCH_LIST"] = arch
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     )
     logger = logging.getLogger("modal_worker")
-
-    expected_secret = os.environ.get("MODAL_WEBHOOK_SECRET")
-    if expected_secret:
-        provided = str(body.get("secret") or "")
-        if not hmac.compare_digest(provided.encode(), expected_secret.encode()):
-            logger.warning("Webhook rechazado: secreto inválido")
-            return {"status": "error", "message": "No autorizado"}
-    else:
-        logger.warning("MODAL_WEBHOOK_SECRET no configurado: el webhook acepta cualquier llamada")
-
-    job_id = body.get("job_id")
-    vehicle_id = body.get("vehicle_id")
-
-    if not job_id or not vehicle_id:
-        return {"status": "error", "message": "job_id y vehicle_id son requeridos"}
 
     logger.info("Job recibido: %s (vehicle=%s)", job_id, vehicle_id)
 
@@ -112,6 +102,59 @@ def process_job(body: dict) -> dict:
         return {"status": "error", "message": "Job no disponible"}
 
     if not run_pipeline(job):
-        # 500 para que el panel de Modal muestre el fallo (el detalle queda en processing_jobs.error_message)
-        raise HTTPException(status_code=500, detail=f"Job {job_id} falló")
+        raise RuntimeError(f"Job {job_id} falló")
     return {"status": "ok", "message": f"Job {job_id} procesado"}
+
+
+@app.function(timeout=60)
+@modal.fastapi_endpoint(method="POST")
+def process_job(body: dict) -> dict:
+    """
+    Webhook HTTP que encola el pipeline de reconstrucción 3D y responde de inmediato.
+    Corre en CPU: solo valida la llamada y lanza `run_job` (GPU) en segundo plano.
+
+    Body esperado:
+        { "job_id": "uuid", "vehicle_id": "uuid", "secret": "<MODAL_WEBHOOK_SECRET>" }
+
+    Si MODAL_WEBHOOK_SECRET está definido en el secret de Modal, el body debe
+    traer el mismo valor; así solo el backend puede disparar el pipeline.
+
+    Retorna:
+        { "status": "queued" | "error", "message": "..." }
+    """
+    import hmac
+    import logging
+    import os
+    import uuid
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+    )
+    logger = logging.getLogger("modal_webhook")
+
+    expected_secret = os.environ.get("MODAL_WEBHOOK_SECRET")
+    if expected_secret:
+        provided = str(body.get("secret") or "")
+        if not hmac.compare_digest(provided.encode(), expected_secret.encode()):
+            logger.warning("Webhook rechazado: secreto inválido")
+            return {"status": "error", "message": "No autorizado"}
+    else:
+        logger.warning("MODAL_WEBHOOK_SECRET no configurado: el webhook acepta cualquier llamada")
+
+    job_id = body.get("job_id")
+    vehicle_id = body.get("vehicle_id")
+
+    if not job_id or not vehicle_id:
+        return {"status": "error", "message": "job_id y vehicle_id son requeridos"}
+
+    # Solo UUID válidos: evita lanzar una GPU con basura
+    try:
+        job_id = str(uuid.UUID(str(job_id)))
+        vehicle_id = str(uuid.UUID(str(vehicle_id)))
+    except ValueError:
+        return {"status": "error", "message": "job_id y vehicle_id deben ser UUID"}
+
+    call = run_job.spawn(job_id, vehicle_id)
+    logger.info("Job %s encolado (vehicle=%s, call=%s)", job_id, vehicle_id, call.object_id)
+    return {"status": "queued", "message": f"Job {job_id} encolado"}
