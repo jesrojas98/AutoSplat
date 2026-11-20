@@ -24,6 +24,19 @@ export interface Vehicle {
   vehicle_3d_models: { id: string; status: string; model_url: string | null; preview_image_url: string | null }[]
 }
 
+/**
+ * Un vehículo puede tener varios modelos 3D (reintentos tras un fallo). Se muestra el completado;
+ * si no hay, el que está en curso; y si no, el primero (p. ej. fallido).
+ */
+export function pickModel(models: Vehicle['vehicle_3d_models'] | undefined) {
+  if (!models?.length) return undefined
+  return (
+    models.find((m) => m.status === 'completed' && m.model_url) ??
+    models.find((m) => m.status === 'processing' || m.status === 'pending') ??
+    models[0]
+  )
+}
+
 export interface VehiclesResponse {
   data: Vehicle[]
   total: number

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { vehiclesService, type Vehicle } from '../services/vehicles.service'
+import { vehiclesService, pickModel, type Vehicle } from '../services/vehicles.service'
 
 // Mock del cliente axios
 vi.mock('@/lib/api', () => ({
@@ -178,5 +178,30 @@ describe('vehiclesService', () => {
       const result = vehiclesService.getThumbnail(vehicle)
       expect(result).toBe('')
     })
+  })
+})
+
+describe('pickModel — qué modelo 3D muestra la ficha', () => {
+  const m = (id: string, status: string, url: string | null = null) =>
+    ({ id, status, model_url: url, preview_image_url: null })
+
+  it('elige el completado aunque haya intentos fallidos antes (caso del Volkswagen Gol)', () => {
+    const models = [m('a', 'failed'), m('b', 'failed'), m('c', 'completed', 'https://x/model.splat')]
+    expect(pickModel(models)?.id).toBe('c')
+  })
+
+  it('si no hay completado, muestra el que está en curso en lugar de uno fallido', () => {
+    expect(pickModel([m('a', 'failed'), m('b', 'processing')])?.id).toBe('b')
+    expect(pickModel([m('a', 'failed'), m('b', 'pending')])?.id).toBe('b')
+  })
+
+  it('un "completado" sin URL no cuenta como listo', () => {
+    expect(pickModel([m('a', 'completed', null), m('b', 'processing')])?.id).toBe('b')
+  })
+
+  it('si solo hay fallidos devuelve el primero, y sin modelos devuelve undefined', () => {
+    expect(pickModel([m('a', 'failed'), m('b', 'failed')])?.id).toBe('a')
+    expect(pickModel([])).toBeUndefined()
+    expect(pickModel(undefined)).toBeUndefined()
   })
 })

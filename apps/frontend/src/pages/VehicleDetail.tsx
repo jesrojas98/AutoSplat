@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { formatPriceNumber } from '@/utils/formatters'
-import { vehiclesService, type Vehicle } from '@/services/vehicles.service'
+import { vehiclesService, pickModel, type Vehicle } from '@/services/vehicles.service'
 import { favoritesService } from '@/services/favorites.service'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth.store'
@@ -178,7 +178,7 @@ export function VehicleDetail() {
           )}
 
           {vehicle.has_3d_model && (() => {
-            const model = vehicle.vehicle_3d_models?.[0]
+            const model = pickModel(vehicle.vehicle_3d_models)
             const modelUrl = model?.status === 'completed' ? model.model_url : null
             return (
               <div className="glass-card rounded-xl overflow-hidden">
