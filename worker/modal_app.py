@@ -11,7 +11,7 @@ Configurar en el backend como MODAL_WEBHOOK_URL.
 
 Arquitectura:
     backend ──POST──▶ process_job (webhook, CPU, responde al instante)
-                          └─ .spawn() ──▶ run_job (GPU L40S, hasta 2 h, independiente del HTTP)
+                          └─ .spawn() ──▶ run_job (GPU T4, hasta 3 h, independiente del HTTP)
 
 El pipeline NO corre dentro de la petición del webhook: Modal cancela una petición web cuyo cliente
 se desconectó (el backend corta a los 10 s) a los ~2 minutos, y eso mataba el entrenamiento a medias.
@@ -57,10 +57,10 @@ app = modal.App("autosplat-worker", image=image, secrets=secrets)
 
 
 @app.function(
-    # L40S: ~3x más rápida que la T4 (perfil de calidad: ~30 min de entrenamiento vs ~90 min) y por trabajo cuesta
-    # casi lo mismo. Para volver a la T4 basta cambiar esta línea (cuda_arch_list se adapta sola a la GPU).
-    gpu="L40S",
-    timeout=7200,        # 2 horas máximo por job
+    # T4: la GPU más barata de Modal. El perfil de calidad tarda ~90 min aquí (~30 min en una L40S, que cuesta
+    # ~3,5x más por hora). Para cambiar de GPU basta esta línea (cuda_arch_list se adapta sola a la GPU).
+    gpu="T4",
+    timeout=10800,       # 3 horas máximo por job (en T4 el entrenamiento de calidad ronda 1,5 h)
     memory=16384,        # 16 GB RAM
     cpu=4,
 )
