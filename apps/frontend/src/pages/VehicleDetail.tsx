@@ -192,10 +192,10 @@ export function VehicleDetail() {
                 {modelUrl ? (
                   <iframe
                     src={`/splat-viewer.html?url=${encodeURIComponent(modelUrl)}`}
-                    className="w-full border-0"
-                    style={{ height: 360 }}
+                    className="w-full border-0 h-[360px] sm:h-[480px]"
                     title="Visor 3D Gaussian Splatting"
-                    allow="cross-origin-isolated"
+                    allow="cross-origin-isolated; fullscreen"
+                    allowFullScreen
                   />
                 ) : (
                   <div className="h-40 flex flex-col items-center justify-center gap-3 bg-[var(--color-surface-well)]">

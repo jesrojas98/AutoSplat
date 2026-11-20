@@ -1,5 +1,5 @@
 """
-Orquestador del pipeline completo: download → COLMAP → train → export → upload.
+Orquestador del pipeline completo: download → COLMAP → máscaras del auto → train → export → upload.
 Reporta progreso al backend en cada etapa.
 """
 import logging
@@ -12,7 +12,9 @@ from db import get_reconstruction_images, mark_job_failed
 from api_client import report_progress, complete_job
 from steps.download import download_images
 from steps.colmap import run_colmap
-from steps.train import train_splatfacto
+from steps.masks import generate_masks, masks_available
+from steps.train import (QUALITY_ANTIALIASED, QUALITY_DATA_ARGS, QUALITY_METHOD, QUALITY_MODEL_ARGS,
+                         train_splatfacto)
 from steps.export import export_and_convert
 from steps.upload import upload_model
 
@@ -77,16 +79,27 @@ def _run_steps(job_id: str, vehicle_id: str, work_dir: Path, start_time: float) 
     # ── 2. COLMAP — extracción de poses ───────────────────────────────────────
     _progress(job_id, "running_colmap", 0)
     processed_dir = run_colmap(images_dir, work_dir)
+
+    # Máscaras del auto en cada foto: al exportar separan el auto del fondo (fondo limpio).
+    # Si fallan, se sigue sin ellas (el recorte cilíndrico igual deja el auto con algo de suelo).
+    if masks_available():
+        try:
+            generate_masks(processed_dir)
+        except Exception as exc:
+            logger.warning("Sin máscaras del auto (%s): se exporta solo con el recorte cilíndrico.", exc)
     _progress(job_id, "running_colmap", 100)
 
     # ── 3. Entrenamiento Gaussian Splatting ───────────────────────────────────
     _progress(job_id, "training_model", 0)
-    config_path = train_splatfacto(processed_dir, work_dir, job_id)
+    config_path = train_splatfacto(
+        processed_dir, work_dir, job_id,
+        method=QUALITY_METHOD, model_args=QUALITY_MODEL_ARGS, data_args=QUALITY_DATA_ARGS,
+    )
     _progress(job_id, "training_model", 100)
 
-    # ── 4. Exportar PLY → .splat ──────────────────────────────────────────────
+    # ── 4. Exportar: recorte del auto + .spz con reflejos ─────────────────────
     _progress(job_id, "exporting_model", 0)
-    splat_path, num_gaussians = export_and_convert(config_path, work_dir)
+    splat_path, num_gaussians = export_and_convert(config_path, work_dir, antialiased=QUALITY_ANTIALIASED)
     _progress(job_id, "exporting_model", 100)
 
     # ── 5. Subir a Supabase Storage ───────────────────────────────────────────

@@ -1,5 +1,5 @@
 """
-Sube el modelo .splat a Supabase Storage y genera una imagen de preview.
+Sube el modelo 3D (.spz) a Supabase Storage y genera una imagen de preview.
 """
 import logging
 from pathlib import Path
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def upload_model(splat_path: Path, vehicle_id: str) -> dict:
     """
-    Sube el .splat a Supabase Storage.
+    Sube el modelo (model.spz) a Supabase Storage. El visor elige el formato según la extensión.
 
     Returns:
         Dict con model_url y preview_image_url (si se generó).
@@ -21,7 +21,7 @@ def upload_model(splat_path: Path, vehicle_id: str) -> dict:
     model_url = upload_model_to_storage(
         local_path=str(splat_path),
         vehicle_id=vehicle_id,
-        filename="model.splat",
+        filename=splat_path.name,
     )
 
     result = {"model_url": model_url, "preview_image_url": None}

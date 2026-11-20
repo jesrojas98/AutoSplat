@@ -6,8 +6,12 @@
   <title>Visor 3D</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a0a0f; overflow: hidden; width: 100vw; height: 100vh; font-family: system-ui, sans-serif; }
-    canvas { display: block; width: 100%; height: 100%; }
+    /* Fondo de "estudio": el modelo llega recortado (solo el auto) y se dibuja sobre esto */
+    body {
+      overflow: hidden; width: 100vw; height: 100vh; font-family: system-ui, sans-serif;
+      background: radial-gradient(ellipse 80% 70% at 50% 58%, #2a2e38 0%, #15171d 55%, #0a0b0f 100%);
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
     #overlay {
       position: absolute; inset: 0;
@@ -32,7 +36,7 @@
     }
     #hint {
       position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-      color: rgba(255,255,255,0.2); font-size: 10px;
+      color: rgba(255,255,255,0.28); font-size: 10px;
       letter-spacing: 0.08em; text-transform: uppercase;
       white-space: nowrap; pointer-events: none; transition: opacity 1s;
     }
@@ -46,7 +50,26 @@
       padding: 16px;
     }
     #error-msg.show { display: flex; }
+    #fullscreen {
+      position: absolute; top: 10px; right: 10px; width: 34px; height: 34px;
+      display: none; align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,0.14); border-radius: 8px;
+      background: rgba(10,11,15,0.55); color: rgba(255,255,255,0.75); cursor: pointer;
+    }
+    #fullscreen.show { display: flex; }
+    #fullscreen:hover { background: rgba(10,11,15,0.8); color: #fff; }
   </style>
+  <!-- Spark (Gaussian Splatting sobre three.js): dibuja los armónicos esféricos, es decir los reflejos
+       de la pintura y los vidrios que cambian según el ángulo. Versiones fijas. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+        "@sparkjsdev/spark": "https://cdn.jsdelivr.net/npm/@sparkjsdev/spark@2.4.0/dist/spark.module.js"
+      }
+    }
+  </script>
 </head>
 <body>
   <canvas id="canvas"></canvas>
@@ -59,11 +82,15 @@
     <div id="status">Cargando modelo 3D…</div>
   </div>
 
-  <div id="hint">Arrastra · Scroll · Click derecho</div>
+  <div id="hint">Arrastra para girar · Pellizca o scroll para acercar</div>
   <div id="error-msg"></div>
+  <button id="fullscreen" type="button" title="Pantalla completa" aria-label="Pantalla completa">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
+    </svg>
+  </button>
 
-  <script>
-    (function() {
+  <script type="module">
     const params = new URLSearchParams(window.location.search);
     const modelUrl = params.get('url');
     const overlay = document.getElementById('overlay');
@@ -79,105 +106,172 @@
       errorMsg.classList.add('show');
     }
 
-    if (!modelUrl) { showError('Sin URL de modelo'); return; }
+    // Formato según la extensión:
+    //  - .spz  (pipeline actual): solo el auto, centrado por el worker, z hacia arriba (nerfstudio), con
+    //          armónicos esféricos (reflejos). La cabecera indica si se entrenó en modo antialiased.
+    //  - .ply  mismo marco que .spz, sin comprimir.
+    //  - .splat (modelos antiguos): y hacia abajo (convención de gsplat.js), sin reflejos, modo clásico.
+    function modelFormat(url) {
+      const path = url.split(/[?#]/)[0].toLowerCase();
+      if (path.endsWith('.splat')) return 'splat';
+      if (path.endsWith('.ply')) return 'ply';
+      return 'spz';
+    }
 
-    // Cargar gsplat como módulo dinámico
-    async function main() {
-      let mod;
+    // Flag "antialiased" de la cabecera SPZ (byte 14 del contenido descomprimido)
+    async function spzAntialiased(bytes) {
       try {
-        mod = await import('/gsplat.js');
-      } catch(e) {
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+        const reader = stream.getReader();
+        let head = new Uint8Array(0);
+        while (head.length < 16) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const merged = new Uint8Array(head.length + value.length);
+          merged.set(head); merged.set(value, head.length);
+          head = merged;
+        }
+        reader.cancel().catch(() => {});
+        return head.length >= 16 ? (head[14] & 1) === 1 : false;
+      } catch {
+        return false;
+      }
+    }
+
+    async function download(url) {
+      const resp = await fetch(url, { mode: 'cors', credentials: 'omit' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} — no se pudo descargar el modelo`);
+      const total = parseInt(resp.headers.get('content-length') || '0');
+      const reader = resp.body.getReader();
+      const chunks = [];
+      let received = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) {
+          const pct = Math.round(received / total * 100);
+          fill.style.width = pct + '%';
+          status.textContent = `Cargando… ${pct}%`;
+        }
+      }
+      const full = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) { full.set(chunk, offset); offset += chunk.length; }
+      return full;
+    }
+
+    async function main() {
+      if (!modelUrl) { showError('Sin URL de modelo'); return; }
+
+      let THREE, OrbitControls, SparkRenderer, SplatMesh;
+      try {
+        THREE = await import('three');
+        ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+        ({ SparkRenderer, SplatMesh } = await import('@sparkjsdev/spark'));
+      } catch (e) {
         showError('Error al cargar librería 3D: ' + e.message);
         return;
       }
 
-      const { WebGLRenderer, Scene, Camera, OrbitControls, Loader } = mod;
+      const format = modelFormat(modelUrl);
 
-      // Forzar dimensiones explícitas antes de crear el renderer
-      // (el canvas dentro de un iframe puede tener clientWidth=0 al iniciar)
-      canvas.width = window.innerWidth || 600;
-      canvas.height = window.innerHeight || 360;
-
-      const renderer = new WebGLRenderer(canvas);
-      const camera = new Camera();
-      const controls = new OrbitControls(camera, canvas);
-      const scene = new Scene();
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
+      // Nitidez real en el teléfono: se dibuja con la densidad de píxeles de la pantalla (tope 2 por rendimiento)
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 200);
 
       function resize() {
         const w = window.innerWidth || canvas.clientWidth || 600;
         const h = window.innerHeight || canvas.clientHeight || 360;
-        canvas.width = w;
-        canvas.height = h;
-        renderer.setSize(w, h);
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
       }
+      resize();
       window.addEventListener('resize', resize);
 
-      // Descargar con fetch manual para ver progreso y errores
       status.textContent = 'Descargando…';
-      let arrayBuffer;
+      let bytes;
       try {
-        const resp = await fetch(modelUrl, { mode: 'cors', credentials: 'omit' });
-        if (!resp.ok) { showError(`HTTP ${resp.status} — no se pudo descargar el modelo`); return; }
-
-        const total = parseInt(resp.headers.get('content-length') || '0');
-        const reader = resp.body.getReader();
-        const chunks = [];
-        let received = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          received += value.length;
-          if (total > 0) {
-            const pct = Math.round(received / total * 100);
-            fill.style.width = pct + '%';
-            status.textContent = `Cargando… ${pct}%`;
-          }
-        }
-
-        // Unir chunks
-        const full = new Uint8Array(received);
-        let offset = 0;
-        for (const chunk of chunks) { full.set(chunk, offset); offset += chunk.length; }
-        arrayBuffer = full.buffer;
-        fill.style.width = '100%';
-        status.textContent = 'Inicializando visor…';
-
-      } catch(e) {
-        showError('Error de red: ' + e.message);
+        bytes = await download(modelUrl);
+      } catch (e) {
+        showError(e.message.startsWith('HTTP') ? e.message : 'Error de red: ' + e.message);
         return;
       }
 
-      // Parsear el .splat y añadir a la escena
+      status.textContent = 'Inicializando visor…';
+      // Modo de rasterizado igual al del entrenamiento: antialiased (gsplat) = desenfoque 0,3 con compensación;
+      // clásico = desenfoque 0,3 sin compensación.
+      const antialiased = format === 'spz' ? await spzAntialiased(bytes) : false;
+      const spark = new SparkRenderer(antialiased
+        ? { renderer }
+        : { renderer, preBlurAmount: 0.3, blurAmount: 0.0 });
+      scene.add(spark);
+
+      let mesh;
       try {
-        Loader.LoadFromArrayBuffer(arrayBuffer, scene);
-      } catch(e) {
+        mesh = new SplatMesh({ fileBytes: bytes, fileType: format });
+        await mesh.initialized;
+      } catch (e) {
         showError('Error al parsear el modelo: ' + e.message);
         return;
       }
+      // three.js usa y hacia arriba
+      mesh.rotation.x = format === 'splat' ? Math.PI : -Math.PI / 2;
+      scene.add(mesh);
+      mesh.updateMatrixWorld(true);
 
-      // Iniciar render — el worker WASM de sort puede tardar unos frames en estar listo
+      // Encuadre automático sobre el auto, en vista 3/4 levemente elevada
+      const box = mesh.getBoundingBox(true).applyMatrix4(mesh.matrixWorld);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const radius = 0.5 * Math.max(size.x, size.y, size.z);
+      const fov = THREE.MathUtils.degToRad(camera.fov);
+      const dist = radius / Math.sin(fov / 2) * (camera.aspect < 1 ? 1.35 / camera.aspect : 1.05);
+      camera.position.copy(center).add(new THREE.Vector3(0.75, 0.32, 0.9).normalize().multiplyScalar(dist));
+      camera.near = dist / 100;
+      camera.far = dist * 20;
+      camera.updateProjectionMatrix();
+
+      const controls = new OrbitControls(camera, canvas);
+      controls.target.copy(center);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.minDistance = dist * 0.35;
+      controls.maxDistance = dist * 3;
+      controls.maxPolarAngle = Math.PI * 0.52;   // no meterse bajo el auto
+      // Vitrina: gira sola hasta que el usuario toca el modelo
+      controls.autoRotate = params.get('spin') !== '0';
+      controls.autoRotateSpeed = 0.8;
+      controls.addEventListener('start', () => {
+        controls.autoRotate = false;
+        hint.classList.add('hidden');
+      });
+      controls.update();
+
       overlay.classList.add('hidden');
-      setTimeout(() => hint.classList.add('hidden'), 4000);
+      setTimeout(() => hint.classList.add('hidden'), 5000);
 
-      let ready = false;
-      function loop() {
-        requestAnimationFrame(loop);
-        controls.update();
-        try {
-          renderer.render(scene, camera);
-          ready = true;
-        } catch(e) {
-          if (ready) { showError('Error de render: ' + e.message); }
-          // ignorar errores de inicialización del worker WASM
-        }
+      // Pantalla completa (el iframe de la ficha la permite con allowFullScreen)
+      const fsButton = document.getElementById('fullscreen');
+      if (document.fullscreenEnabled) {
+        fsButton.classList.add('show');
+        fsButton.addEventListener('click', () => {
+          if (document.fullscreenElement) document.exitFullscreen();
+          else document.documentElement.requestFullscreen().catch(() => {});
+        });
       }
-      loop();
+
+      renderer.setAnimationLoop(() => {
+        controls.update();
+        renderer.render(scene, camera);
+      });
     }
 
     main().catch(e => showError(e.message || String(e)));
-    })();
   </script>
 </body>
 </html>

@@ -11,7 +11,7 @@ Configurar en el backend como MODAL_WEBHOOK_URL.
 
 Arquitectura:
     backend ──POST──▶ process_job (webhook, CPU, responde al instante)
-                          └─ .spawn() ──▶ run_job (GPU T4, hasta 2 h, independiente del HTTP)
+                          └─ .spawn() ──▶ run_job (GPU L40S, hasta 2 h, independiente del HTTP)
 
 El pipeline NO corre dentro de la petición del webhook: Modal cancela una petición web cuyo cliente
 se desconectó (el backend corta a los 10 s) a los ~2 minutos, y eso mataba el entrenamiento a medias.
@@ -36,6 +36,16 @@ image = (
         "plyfile==1.0.3",
         "Pillow==10.3.0",
     ])
+    # Segmentación del vehículo (steps/segment_cars.py): SAM + pesos de SAM vit_h y de Mask R-CNN,
+    # instalados para el Python 3.10 de nerfstudio (que es el que tiene torch) en /opt/seg.
+    .run_commands(
+        "/usr/bin/python3.10 -m pip install --no-deps --target /opt/seg segment-anything==1.0",
+        "mkdir -p /opt/seg/weights && /usr/bin/python3.10 -c \"import urllib.request as u; "
+        "u.urlretrieve('https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth', "
+        "'/opt/seg/weights/sam_vit_h_4b8939.pth')\"",
+        "PYTHONUSERBASE=/home/user/.local TORCH_HOME=/opt/seg/torch /usr/bin/python3.10 -c "
+        "\"from torchvision.models.detection import maskrcnn_resnet50_fpn_v2 as m; m(weights='DEFAULT')\"",
+    )
     # Copiar el código del worker al contenedor
     .add_local_dir(Path(__file__).parent / "src", remote_path="/worker/src")
 )
@@ -47,7 +57,9 @@ app = modal.App("autosplat-worker", image=image, secrets=secrets)
 
 
 @app.function(
-    gpu="T4",
+    # L40S: ~3x más rápida que la T4 (perfil de calidad: ~30 min de entrenamiento vs ~90 min) y por trabajo cuesta
+    # casi lo mismo. Para volver a la T4 basta cambiar esta línea (cuda_arch_list se adapta sola a la GPU).
+    gpu="L40S",
     timeout=7200,        # 2 horas máximo por job
     memory=16384,        # 16 GB RAM
     cpu=4,
