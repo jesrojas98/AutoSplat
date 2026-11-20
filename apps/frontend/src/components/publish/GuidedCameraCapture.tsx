@@ -418,7 +418,8 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
                 <p className="label-caps text-center mb-3" style={{ color: ACCENT }}>CÓMO ESCANEAR EL AUTO</p>
                 <ol className="space-y-3">
                   {[
-                    'Párate frente al auto, a unos 3 metros, con todo el auto dentro del marco.',
+                    'Deja el auto con espacio libre alrededor (unos 3 m por lado). Si está pegado a un muro o un arbusto, ese costado sale borroso en 3D.',
+                    'Párate frente al auto, a unos 3 metros, y mantén siempre esa distancia: no te acerques a los costados.',
                     'Camina hacia tu izquierda rodeando el auto, mirando siempre al centro.',
                     'Haz 3 vueltas lentas: cintura, hombro y rodilla. La app toma las fotos sola mientras caminas.',
                   ].map((t, i) => (

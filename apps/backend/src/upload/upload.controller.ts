@@ -90,7 +90,7 @@ export class UploadController {
       .eq('image_type', 'reconstruction')
     const offset = alreadyUploaded ?? 0
 
-    const uploaded = await this.upload.uploadMany(files, `vehicles/${vehicleId}/reconstruction`)
+    const uploaded = await this.upload.uploadMany(files, `vehicles/${vehicleId}/reconstruction`, { keepOriginal: true })
 
     const rows = uploaded.map((img, i) => ({
       vehicle_id: vehicleId,

@@ -23,12 +23,14 @@ export class UploadService implements OnModuleInit {
   async uploadImage(
     file: Express.Multer.File,
     folder: string,
-    options: { width?: number; height?: number } = {},
+    options: { width?: number; height?: number; keepOriginal?: boolean } = {},
   ): Promise<{ url: string; thumbnail_url: string; public_id: string; width: number; height: number; bytes: number }> {
     const result = await this.streamUpload(file.buffer, {
       folder: `autosplat/${folder}`,
       resource_type: 'image',
-      transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+      // quality:auto recomprime el original al guardarlo (una foto 1080×1920 de ~600 KB quedaba en ~150 KB).
+      // Para la galería da igual, pero a la reconstrucción 3D le quita el detalle fino: esas se guardan intactas.
+      ...(options.keepOriginal ? {} : { transformation: [{ quality: 'auto', fetch_format: 'auto' }] }),
     })
 
     const thumbnail_url = cloudinary.url(result.public_id, {
@@ -49,12 +51,12 @@ export class UploadService implements OnModuleInit {
     }
   }
 
-  async uploadMany(files: Express.Multer.File[], folder: string) {
+  async uploadMany(files: Express.Multer.File[], folder: string, options: { keepOriginal?: boolean } = {}) {
     // Por tandas: con 100+ fotos, subirlas todas a la vez satura Cloudinary y la memoria
     const results: Awaited<ReturnType<UploadService['uploadImage']>>[] = []
     for (let i = 0; i < files.length; i += UPLOAD_CONCURRENCY) {
       const batch = files.slice(i, i + UPLOAD_CONCURRENCY)
-      results.push(...(await Promise.all(batch.map((f) => this.uploadImage(f, folder)))))
+      results.push(...(await Promise.all(batch.map((f) => this.uploadImage(f, folder, options)))))
     }
     return results
   }
