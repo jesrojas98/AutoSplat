@@ -282,6 +282,16 @@ export function Dashboard() {
                     <span className="material-symbols-outlined text-sm">{st.icon}</span>
                     {st.label}
                   </span>
+                  {v.status === 'draft' && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/publish?draft=${v.id}`)}
+                      className="whitespace-nowrap px-3 py-1.5 rounded-lg bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps text-[10px] font-bold hover:bg-[var(--color-primary)] transition-colors"
+                      title="Subir las fotos y publicar este borrador"
+                    >
+                      CONTINUAR
+                    </button>
+                  )}
                   <Link to={`/vehicles/${v.id}`}
                     className="p-2 rounded-lg hover:bg-[var(--color-surface-container-high)] transition-colors" title="Ver publicación">
                     <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-base">open_in_new</span>

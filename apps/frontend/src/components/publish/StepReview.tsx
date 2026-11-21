@@ -8,6 +8,26 @@ import { GALLERY_IMAGE, RECONSTRUCTION_IMAGE, prepareImage } from '@/utils/prepa
 interface Props {
   form: VehicleForm
   onPrev: () => void
+  /** Borrador existente a completar (su subida de fotos falló antes): no se crea otro vehículo */
+  draftId?: string | null
+}
+
+function vehiclePayload(form: VehicleForm) {
+  return {
+    brand: form.brand,
+    model: form.model,
+    year: Number(form.year),
+    price: Number(form.price),
+    mileage: Number(form.mileage),
+    transmission: form.transmission || undefined,
+    fuel_type: form.fuelType || undefined,
+    body_type: form.bodyType || undefined,
+    color: form.color || undefined,
+    doors: form.doors ? Number(form.doors) : undefined,
+    location: form.location,
+    region: form.region || undefined,
+    description: form.description || undefined,
+  }
 }
 
 const FUEL_LABEL: Record<string, string> = { gasoline: 'Bencina', diesel: 'Diésel', electric: 'Eléctrico', hybrid: 'Híbrido' }
@@ -41,12 +61,13 @@ function describePublishError(err: any, step: number): string {
   return `${STEP_FAILED[step]} (${res.status}${detail ? `: ${detail}` : ''}).`
 }
 
-export function StepReview({ form, onPrev }: Props) {
+export function StepReview({ form, onPrev, draftId = null }: Props) {
   const navigate = useNavigate()
   const [publishing, setPublishing] = useState(false)
   const [publishStep, setPublishStep] = useState(0)
   const [done, setDone] = useState(false)
-  const [vehicleId, setVehicleId] = useState<string | null>(null)
+  const [vehicleId, setVehicleId] = useState<string | null>(draftId)
+  const draftSaved = useRef(false)
   const [error, setError] = useState('')
   const publishStepRef = useRef(0)
   // En un reintento se retoma desde lo que ya se subió (galería lista, fotos 3D ya enviadas)
@@ -67,23 +88,13 @@ export function StepReview({ form, onPrev }: Props) {
       goTo(0)
       let id = vehicleId
       if (!id) {
-        const { data: vehicle } = await api.post('/vehicles', {
-          brand: form.brand,
-          model: form.model,
-          year: Number(form.year),
-          price: Number(form.price),
-          mileage: Number(form.mileage),
-          transmission: form.transmission || undefined,
-          fuel_type: form.fuelType || undefined,
-          body_type: form.bodyType || undefined,
-          color: form.color || undefined,
-          doors: form.doors ? Number(form.doors) : undefined,
-          location: form.location,
-          region: form.region || undefined,
-          description: form.description || undefined,
-        })
+        const { data: vehicle } = await api.post('/vehicles', vehiclePayload(form))
         id = vehicle.id as string
         setVehicleId(id)
+      } else if (draftId && !draftSaved.current) {
+        // Borrador retomado: se guardan los datos por si se corrigieron en el paso 1
+        await api.patch(`/vehicles/${id}`, vehiclePayload(form))
+        draftSaved.current = true
       }
 
       // 2. Subir fotos de galería: achicadas en el teléfono y por tandas (todas juntas a tamaño completo
