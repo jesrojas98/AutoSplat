@@ -23,9 +23,11 @@ from steps.spz import SH_DIM, write_spz
 
 logger = logging.getLogger(__name__)
 
-# Grado de armónicos esféricos (reflejos) que se envía al visor. Medido en vistas no usadas al entrenar: el grado 2
-# es el mejor en PSNR/SSIM/LPIPS (el 3 sobreajusta y además pesa más; el 0-1 pierde los reflejos).
-EXPORT_SH_DEGREE = 2
+# Grado de armónicos esféricos (reflejos) que se envía al visor. En vistas a la altura de las fotos el grado 2 mide
+# algo mejor (PSNR/SSIM/LPIPS), pero desde ángulos que nadie fotografió (el visor deja mirar desde arriba) inventa
+# tonos verdes/violetas sobre la pintura: se vio en el capó del Omoda C5 blanco. El grado 1 conserva el brillo
+# sin esos colores y pesa menos.
+EXPORT_SH_DEGREE = 1
 
 # Con máscaras se quita además una franja delgada a la altura del suelo (× radio de cámaras, ~3 cm en un auto):
 # es el suelo que queda justo bajo y junto al auto, que desde el lado opuesto cae "detrás" de su silueta.

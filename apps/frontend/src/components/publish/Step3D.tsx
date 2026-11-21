@@ -147,7 +147,7 @@ export function Step3D({ form, onChange, onNext, onPrev }: Props) {
                 Abrir cámara y empezar captura guiada
               </p>
               <p className="label-caps text-[var(--color-on-surface-variant)] text-xs text-center">
-                3 PASADAS × 36 FOTOS · GIRO DE 360° A TRES ALTURAS
+                3 PASADAS × 36 FOTOS · HORIZONTAL O VERTICAL (HORIZONTAL RECOMENDADO)
               </p>
             </button>
           )}

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # 48 fotos; 8 reservadas para medir PSNR/SSIM/LPIPS dentro de la silueta del auto). Se entrena con la escena
 # completa: el entorno ayuda a ubicar la geometría del auto; el fondo se quita al exportar (mask_cull.py).
 #
-# Resultado del producto final (solo el auto, SH grado 2), frente al entrenamiento por defecto de nerfstudio:
+# Resultado del producto final (solo el auto, SH grado 2; producción exporta grado 1, ver export.py), frente al entrenamiento por defecto de nerfstudio:
 #   PSNR 18,31 vs 17,75 · SSIM 0,753 vs 0,713 · LPIPS 0,300 vs 0,337. Descartados por medir peor: entrenar con
 #   máscaras o fondo blanco, splatfacto-big con máscaras y el refinamiento de poses (camera-optimizer).
 QUALITY_METHOD = "splatfacto"

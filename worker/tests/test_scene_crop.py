@@ -232,8 +232,8 @@ def test_export_con_camaras_recorta_normaliza_y_conserva_reflejos(ply, tmp_path)
     assert len(d["positions"]) == kept
     assert 0.1 * n < kept < 0.9 * n                                    # recortó el entorno, conservó el auto
     assert np.hypot(d["positions"][:, 0], d["positions"][:, 1]).max() <= 1.0 + 1e-3
-    assert d["degree"] == export.EXPORT_SH_DEGREE == 2 and d["antialiased"]   # grado 2: el mejor medido
-    assert d["sh_rest"].shape == (kept, 3, 8)
+    assert d["degree"] == export.EXPORT_SH_DEGREE == 1 and d["antialiased"]   # grado 1: sin tonos falsos
+    assert d["sh_rest"].shape == (kept, 3, 3)
     assert (d["alphas"] > 0.09).all()
 
 

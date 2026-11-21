@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  type CaptureMode,
+  type FrameRotation,
+  type OrientationIssue,
+  type PhonePose,
+  drawRotatedFrame,
+  evaluateOrientation,
+  phonePose,
+  uiRotationFor,
+} from './captureOrientation'
 
 interface Props {
   onCapture: (files: File[]) => void
@@ -27,6 +37,43 @@ const MAX_DEG_PER_SEC = 55 // más rápido que esto sale movida la foto
 // En cada disparo se miran varios fotogramas seguidos y se guarda el más nítido (el que no salió movido)
 const BURST_FRAMES = 3
 const BURST_GAP_MS = 70
+
+// Horizontal es la recomendada: el auto llena el ancho de la foto (más píxeles sobre el auto = más detalle).
+// A 3 m entran ~3,8 m de ancho en horizontal y ~2,1 m en vertical; en horizontal la distancia ideal es 2,5–3 m
+// (más cerca se corta el techo, porque el alto que entra es ~2,1 m).
+const MODES: Record<CaptureMode, { label: string; icon: string; summary: string; distanceTip: string }> = {
+  landscape: {
+    label: 'Horizontal',
+    icon: 'stay_current_landscape',
+    summary: 'Recomendado: el auto llena la foto y el 3D sale con más detalle.',
+    distanceTip: 'Sostén el teléfono en horizontal y párate a 2,5–3 m del auto, que llene el ancho de la pantalla. Si al pasar por el costado se cortan un poco las puntas, está bien; mantén siempre esa distancia.',
+  },
+  portrait: {
+    label: 'Vertical',
+    icon: 'stay_current_portrait',
+    summary: 'Más cómodo con una mano, pero el auto sale más chico en cada foto.',
+    distanceTip: 'Párate frente al auto, a unos 3 metros, y mantén siempre esa distancia: no te acerques a los costados.',
+  },
+}
+const MODE_STORAGE_KEY = 'autosplat.captureMode'
+const MAX_HEADING_JUMP_DEG = 25 // un salto así entre dos lecturas es un cambio de referencia del sensor, no movimiento
+
+function loadMode(): CaptureMode {
+  try {
+    const v = localStorage.getItem(MODE_STORAGE_KEY)
+    if (v === 'portrait' || v === 'landscape') return v
+  } catch { /* sin almacenamiento: valor por defecto */ }
+  return 'landscape'
+}
+
+function saveMode(mode: CaptureMode) {
+  try { localStorage.setItem(MODE_STORAGE_KEY, mode) } catch { /* no es crítico */ }
+}
+
+/** Pantalla girada y baja (teléfono en horizontal con rotación automática): controles a un costado. */
+function isShortLandscape(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth > window.innerHeight && window.innerHeight < 600
+}
 
 // Colores fijos: el visor de cámara es oscuro en ambos temas.
 const ACCENT = '#b4c5ff'
@@ -111,6 +158,10 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
   const [tooFast, setTooFast] = useState(false)
   const [flash, setFlash] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [mode, setModeState] = useState<CaptureMode>(loadMode)
+  const [issue, setIssue] = useState<OrientationIssue>(null)
+  const [uiRot, setUiRot] = useState(0)
+  const [shortLandscape, setShortLandscape] = useState(isShortLandscape)
 
   // Espejo en refs para leerlos desde el listener del sensor sin re-suscribirlo
   const phaseRef = useRef<Phase>('intro')
@@ -121,6 +172,10 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
   const lastHeadingRef = useRef<number | null>(null)
   const lastEventTimeRef = useRef(0)
   const lastCaptureTimeRef = useRef(0)
+  const modeRef = useRef<CaptureMode>(mode)
+  const poseRef = useRef<PhonePose | null>(null)
+  const rotationRef = useRef<FrameRotation>(0)
+  const issueRef = useRef<OrientationIssue>(null)
   const onCaptureRef = useRef(onCapture)
   onCaptureRef.current = onCapture
 
@@ -131,6 +186,36 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
 
   const totalTarget = SHOTS_PER_PASS * PASSES.length
   const pass = PASSES[passIndex]
+  // El modo se fija con la primera foto: mezclar fotos verticales y horizontales en una captura no sirve
+  const modeLocked = totalShots > 0
+
+  /** Recalcula si el teléfono está como pide el modo y cuánto hay que girar el fotograma. */
+  const refreshOrientation = useCallback(() => {
+    const video = videoRef.current
+    const frameLandscape = !!video && video.videoWidth > video.videoHeight
+    const { rotation, issue: next } = evaluateOrientation(modeRef.current, frameLandscape, poseRef.current)
+    rotationRef.current = rotation
+    if (issueRef.current !== next) { issueRef.current = next; setIssue(next) }
+    setUiRot(uiRotationFor(rotation))
+  }, [])
+
+  function setMode(next: CaptureMode) {
+    if (filesRef.current.length > 0) return
+    modeRef.current = next
+    setModeState(next)
+    saveMode(next)
+    refreshOrientation()
+  }
+
+  useEffect(() => {
+    const onResize = () => { setShortLandscape(isShortLandscape()); refreshOrientation() }
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
+  }, [refreshOrientation])
 
   // La overlay es position:fixed, pero se monta en <body> porque los ancestros con
   // backdrop-filter (glass-card) la encierran y la desplazan/recortan en el teléfono.
@@ -188,10 +273,10 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
     shotsRef.current = nextShot
     if (passDone) { phaseRef.current = 'busy'; setPhaseState('busy') }
 
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
     const ctx = canvas.getContext('2d')
     if (!ctx) { capturingRef.current = false; return }
+    // Toda la ráfaga con el mismo giro (horizontal con la pantalla bloqueada en vertical: se endereza la escena)
+    const rotation = rotationRef.current
 
     // Ráfaga corta: se queda el fotograma más nítido (al caminar, algunos salen movidos)
     let best = -1
@@ -200,7 +285,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
       const score = frameSharpness(video, small)
       if (score > best) {
         best = score
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        drawRotatedFrame(canvas, ctx, video, rotation)
       }
     }
 
@@ -229,6 +314,12 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
     let gotHeading = false
 
     function onOrientation(e: DeviceOrientationEvent) {
+      if (e.beta !== null && e.gamma !== null) {
+        const pose = phonePose(e.beta, e.gamma)
+        if (pose !== 'flat') poseRef.current = pose // casi horizontal no decide: se queda la última postura clara
+        refreshOrientation()
+      }
+
       const ios = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
       let heading: number | null = null
       if (typeof ios === 'number') heading = ios
@@ -245,6 +336,8 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
       if (prev === null || phaseRef.current !== 'scan') return
 
       const delta = signedDelta(prev, heading)
+      // Al girar el teléfono (vertical ↔ horizontal) algunos sensores cambian de referencia y el rumbo salta
+      if (Math.abs(delta) > MAX_HEADING_JUMP_DEG) return
       const speed = dt > 0 ? Math.abs(delta) / dt * 1000 : 0
       setTooFast(speed > MAX_DEG_PER_SEC)
 
@@ -256,6 +349,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
       if (
         acc >= target &&
         speed <= MAX_DEG_PER_SEC &&
+        issueRef.current === null &&
         Date.now() - lastCaptureTimeRef.current >= CAPTURE_DEBOUNCE_MS
       ) {
         captureFrame()
@@ -269,7 +363,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
       window.removeEventListener('deviceorientation', onOrientation, true)
       clearTimeout(t)
     }
-  }, [captureFrame])
+  }, [captureFrame, refreshOrientation])
 
   async function start() {
     // iOS exige pedir el permiso dentro de un gesto del usuario
@@ -292,7 +386,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
   }
 
   function manualCapture() {
-    if (phaseRef.current !== 'scan') return
+    if (phaseRef.current !== 'scan' || issueRef.current !== null) return
     // En manual el avance angular lo marca la propia foto
     if (sensor !== 'ok') setAngle((shotsRef.current + 1) * STEP_DEG)
     captureFrame()
@@ -306,22 +400,128 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
   const remaining = Math.max(0, Math.ceil((shots + 1) * STEP_DEG - angle))
   const auto = sensor === 'ok'
   const lastPass = passIndex + 1 >= PASSES.length
+  const scanning = phase === 'scan' || phase === 'busy'
+  // Pantalla en vertical con el teléfono de lado: los textos se giran para leerse derechos
+  const rotatedUi = uiRot !== 0
+  const rotStyle = rotatedUi ? { transform: `rotate(${uiRot}deg)` } : undefined
+  // Hacia dónde queda "arriba" para quien sostiene el teléfono de lado (ahí va la instrucción)
+  const topSide = uiRot === -90 ? 'left-0' : 'right-0'
+
+  const frameClass = rotatedUi
+    ? 'left-[22%] right-[22%] top-[6%] bottom-[6%]'
+    : shortLandscape
+      ? 'inset-x-[8%] top-[26%] bottom-[8%]'
+      : 'inset-x-[7%] top-[22%] bottom-[24%]'
+
+  const modeToggle = (
+    <button
+      type="button"
+      onClick={() => setMode(mode === 'landscape' ? 'portrait' : 'landscape')}
+      disabled={modeLocked}
+      aria-label={`Modo ${MODES[mode].label}. Tocar para cambiar`}
+      title={modeLocked ? 'El modo se fija con la primera foto' : 'Cambiar entre horizontal y vertical'}
+      className="shrink-0 h-10 px-3 rounded-full bg-black/50 border border-white/25 text-white flex items-center gap-1.5 disabled:opacity-50"
+    >
+      <span className="material-symbols-outlined text-lg" style={{ color: ACCENT }}>{MODES[mode].icon}</span>
+      <span className="label-caps text-[10px] hidden min-[380px]:inline">{MODES[mode].label}</span>
+    </button>
+  )
+
+  const instruction = (
+    <div
+      className="rounded-2xl bg-black/65 backdrop-blur-sm border border-white/15 px-4 py-2.5 text-center flex-none"
+      style={rotatedUi ? { ...rotStyle, width: '60vh' } : { maxWidth: '100%' }}
+    >
+      {cameraError ? (
+        <p className="text-white text-sm">{cameraError}</p>
+      ) : auto ? (
+        <>
+          <p className="label-caps text-[11px] mb-1" style={{ color: ACCENT }}>{sectorName(angle)}</p>
+          {tooFast ? (
+            <p className="text-sm font-semibold text-amber-300">Más lento, la foto saldría movida</p>
+          ) : (
+            <p className="text-white text-sm font-semibold flex items-center justify-center gap-2">
+              <span className="material-symbols-outlined text-xl animate-pulse" style={{ color: ACCENT }}>arrow_back</span>
+              Camina a tu izquierda
+            </p>
+          )}
+          <p className="text-white/60 text-[11px] mt-1">Próxima foto en {Math.max(1, remaining)}°</p>
+        </>
+      ) : sensor === 'none' ? (
+        <>
+          <p className="label-caps text-[11px] mb-1" style={{ color: ACCENT }}>MODO MANUAL</p>
+          <p className="text-white text-sm">Da un paso a la izquierda y toca el botón. Repite hasta cerrar la vuelta.</p>
+        </>
+      ) : (
+        <p className="text-white/80 text-sm">Calibrando sensores…</p>
+      )}
+    </div>
+  )
+
+  const shutter = (
+    <button
+      type="button"
+      onClick={manualCapture}
+      disabled={phase !== 'scan' || issue !== null}
+      aria-label="Tomar foto"
+      className="w-16 h-16 rounded-full border-4 flex items-center justify-center disabled:opacity-40"
+      style={{ borderColor: auto ? 'rgba(255,255,255,0.35)' : ACCENT }}
+    >
+      <span className={`w-11 h-11 rounded-full flex items-center justify-center ${auto ? 'bg-white/20' : 'bg-white'}`}>
+        {auto && <span className="material-symbols-outlined text-white text-xl animate-spin" style={{ animationDuration: '3s' }}>sync</span>}
+      </span>
+    </button>
+  )
+
+  const skipButton = (
+    <button
+      type="button"
+      onClick={skipPass}
+      disabled={phase !== 'scan'}
+      className="px-3 py-2 border border-white/25 text-white/80 label-caps text-[11px] rounded-lg disabled:opacity-40 whitespace-nowrap"
+    >
+      {lastPass ? 'FINALIZAR' : 'SALTAR'}
+    </button>
+  )
+
+  const progressBar = (
+    <div className="w-full h-1.5 bg-white/15 rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full transition-all duration-300"
+        style={{ width: `${(totalShots / totalTarget) * 100}%`, background: ACCENT }}
+      />
+    </div>
+  )
+
+  const introSteps = [
+    'Deja el auto con espacio libre alrededor (unos 3 m por lado). Si está pegado a un muro o un arbusto, ese costado sale borroso en 3D.',
+    'Mejor a la sombra o con día nublado: el sol directo y las sombras de árboles quedan pintadas sobre el auto.',
+    MODES[mode].distanceTip,
+    'Camina hacia tu izquierda rodeando el auto, mirando siempre al centro.',
+    'Haz 3 vueltas lentas: cintura, hombro y rodilla. La app toma las fotos sola mientras caminas.',
+  ]
 
   const overlay = (
     <div
-      className="fixed inset-0 z-[100] bg-black flex flex-col overflow-hidden"
+      className={`fixed inset-0 z-[100] bg-black flex overflow-hidden ${shortLandscape ? 'flex-row' : 'flex-col'}`}
       style={{ height: '100dvh', width: '100vw' }}
     >
       {/* Visor */}
-      <div className="relative flex-1 min-h-0 overflow-hidden">
-        <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+      <div className="relative flex-1 min-h-0 min-w-0 overflow-hidden">
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          onLoadedMetadata={refreshOrientation}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
         <canvas ref={canvasRef} className="hidden" />
         <canvas ref={sharpCanvasRef} className="hidden" />
 
         {flash && <div className="absolute inset-0 bg-white pointer-events-none" style={{ opacity: 0.85 }} />}
 
-        {/* Marco de encuadre: el auto completo dentro */}
-        <div className={`absolute inset-x-[7%] top-[22%] bottom-[24%] pointer-events-none ${phase === 'scan' || phase === 'busy' ? '' : 'hidden'}`}>
+        {/* Marco de encuadre */}
+        <div className={`absolute pointer-events-none ${frameClass} ${scanning && !issue ? '' : 'hidden'}`}>
           {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
             <span
               key={c}
@@ -364,45 +564,45 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
           <div className="flex-1 min-w-0 text-center">
             <p className="label-caps text-white text-[11px] truncate">Pasada {passIndex + 1} de {PASSES.length} · {pass.short}</p>
           </div>
+          {phase !== 'intro' && modeToggle}
           <div className="shrink-0 min-w-10 h-10 px-3 rounded-full bg-black/50 border border-white/25 flex items-center justify-center">
             <span className="label-caps text-[11px] font-bold" style={{ color: ACCENT }}>{totalShots}/{totalTarget}</span>
           </div>
         </div>
 
         {/* Instrucción dinámica */}
-        {phase === 'scan' && (
-          <div className="absolute inset-x-0 top-[68px] px-4 flex justify-center pointer-events-none">
-            <div className="max-w-full rounded-2xl bg-black/65 backdrop-blur-sm border border-white/15 px-4 py-2.5 text-center">
-              {cameraError ? (
-                <p className="text-white text-sm">{cameraError}</p>
-              ) : auto ? (
-                <>
-                  <p className="label-caps text-[11px] mb-1" style={{ color: ACCENT }}>{sectorName(angle)}</p>
-                  {tooFast ? (
-                    <p className="text-sm font-semibold text-amber-300">Más lento, la foto saldría movida</p>
-                  ) : (
-                    <p className="text-white text-sm font-semibold flex items-center justify-center gap-2">
-                      <span className="material-symbols-outlined text-xl animate-pulse" style={{ color: ACCENT }}>arrow_back</span>
-                      Camina a tu izquierda
-                    </p>
-                  )}
-                  <p className="text-white/60 text-[11px] mt-1">Próxima foto en {Math.max(1, remaining)}°</p>
-                </>
-              ) : sensor === 'none' ? (
-                <>
-                  <p className="label-caps text-[11px] mb-1" style={{ color: ACCENT }}>MODO MANUAL</p>
-                  <p className="text-white text-sm">Da un paso a la izquierda y toca el botón. Repite hasta cerrar la vuelta.</p>
-                </>
-              ) : (
-                <p className="text-white/80 text-sm">Calibrando sensores…</p>
-              )}
+        {phase === 'scan' && !issue && (
+          rotatedUi ? (
+            <div className={`absolute inset-y-0 ${topSide} w-28 flex items-center justify-center pointer-events-none`}>
+              {instruction}
+            </div>
+          ) : (
+            <div className="absolute inset-x-0 top-[68px] px-4 flex justify-center pointer-events-none">
+              {instruction}
+            </div>
+          )
+        )}
+
+        {/* El teléfono no está como pide el modo elegido: la captura se pausa */}
+        {phase === 'scan' && issue && (
+          <div className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none">
+            <div className="max-w-xs rounded-2xl bg-black/75 backdrop-blur-sm border border-white/20 px-5 py-4 text-center">
+              <span className="material-symbols-outlined animate-pulse" style={{ fontSize: 44, color: ACCENT }}>screen_rotation</span>
+              <p className="text-white font-semibold mt-1">
+                {issue === 'need-landscape' ? 'Gira el teléfono a horizontal' : 'Pon el teléfono en vertical'}
+              </p>
+              <p className="text-white/70 text-xs mt-1 leading-snug">
+                {modeLocked
+                  ? `Esta captura empezó en ${MODES[mode].label.toLowerCase()}: termínala igual para que todas las fotos coincidan.`
+                  : `Elegiste ${MODES[mode].label.toLowerCase()}. Puedes cambiarlo con el botón de arriba.`}
+              </p>
             </div>
           </div>
         )}
 
         {/* Radar: dónde estás y cuánto falta */}
-        {(phase === 'scan' || phase === 'busy') && (
-          <div className="absolute right-3 bottom-3 pointer-events-none">
+        {scanning && (
+          <div className={`absolute bottom-3 pointer-events-none ${uiRot === 90 ? 'left-3' : 'right-3'}`}>
             <Radar shots={shots} angle={auto ? angle : shots * STEP_DEG} showMarker />
           </div>
         )}
@@ -411,18 +611,40 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
         {phase === 'intro' && (
           <div className="absolute inset-0 bg-black/80 overflow-y-auto">
             <div className="min-h-full flex flex-col items-center justify-center px-5 py-20 gap-5">
-              <div className="w-44 shrink-0">
+              <div className={`${shortLandscape ? 'w-28' : 'w-40'} shrink-0`}>
                 <Radar shots={0} angle={0} showMarker intro />
+              </div>
+              <div className="w-full max-w-sm">
+                <p className="label-caps text-center mb-2" style={{ color: ACCENT }}>¿CÓMO SOSTIENES EL TELÉFONO?</p>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Orientación de la captura">
+                  {(['landscape', 'portrait'] as const).map((m) => {
+                    const selected = mode === m
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setMode(m)}
+                        className="rounded-xl border px-3 py-2.5 flex flex-col items-center gap-1 text-white transition-colors"
+                        style={{
+                          borderColor: selected ? ACCENT : 'rgba(255,255,255,0.2)',
+                          background: selected ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.04)',
+                        }}
+                      >
+                        <span className="material-symbols-outlined text-2xl" style={{ color: selected ? ACCENT : 'rgba(255,255,255,0.7)' }}>{MODES[m].icon}</span>
+                        <span className="label-caps text-[11px] font-bold">{MODES[m].label}</span>
+                        {m === 'landscape' && <span className="text-[10px] font-semibold" style={{ color: ACCENT }}>RECOMENDADO</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-white/70 text-xs text-center mt-2 leading-snug">{MODES[mode].summary}</p>
               </div>
               <div className="w-full max-w-sm">
                 <p className="label-caps text-center mb-3" style={{ color: ACCENT }}>CÓMO ESCANEAR EL AUTO</p>
                 <ol className="space-y-3">
-                  {[
-                    'Deja el auto con espacio libre alrededor (unos 3 m por lado). Si está pegado a un muro o un arbusto, ese costado sale borroso en 3D.',
-                    'Párate frente al auto, a unos 3 metros, y mantén siempre esa distancia: no te acerques a los costados.',
-                    'Camina hacia tu izquierda rodeando el auto, mirando siempre al centro.',
-                    'Haz 3 vueltas lentas: cintura, hombro y rodilla. La app toma las fotos sola mientras caminas.',
-                  ].map((t, i) => (
+                  {introSteps.map((t, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: ACCENT_STRONG }}>{i + 1}</span>
                       <span className="text-white/90 text-sm leading-snug">{t}</span>
@@ -438,7 +660,7 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
                   className="w-full py-3.5 rounded-xl label-caps font-bold text-white disabled:opacity-40"
                   style={{ background: ACCENT_STRONG }}
                 >
-                  EMPEZAR
+                  EMPEZAR EN {MODES[mode].label.toUpperCase()}
                 </button>
                 {cameraError && <p className="text-amber-300 text-xs text-center">{cameraError}</p>}
                 <button type="button" onClick={onClose} className="w-full py-3 label-caps text-xs text-white/70">
@@ -452,11 +674,15 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
         {/* Entre pasadas */}
         {phase === 'between' && (
           <div className="absolute inset-0 bg-black/80 flex items-center justify-center px-5">
-            <div className="w-full max-w-sm rounded-2xl bg-black/70 border border-white/15 p-6 text-center">
+            <div
+              className="w-full max-w-sm rounded-2xl bg-black/70 border border-white/15 p-6 text-center flex-none"
+              style={rotatedUi ? { ...rotStyle, width: 'min(24rem, 80vh)' } : undefined}
+            >
               <span className="material-symbols-outlined mb-2" style={{ fontSize: 40, color: ACCENT }}>check_circle</span>
               <p className="label-caps text-white mb-2">PASADA {passIndex + 1} COMPLETA</p>
               <p className="text-white/80 text-sm leading-snug mb-5">
-                {PASSES[Math.min(passIndex + 1, PASSES.length - 1)].hint} Repite el recorrido desde el frente del auto.
+                {PASSES[Math.min(passIndex + 1, PASSES.length - 1)].hint} Repite el recorrido desde el frente del auto
+                {mode === 'landscape' ? ', con el teléfono en horizontal.' : '.'}
               </p>
               <button
                 type="button"
@@ -471,51 +697,35 @@ export function GuidedCameraCapture({ onCapture, onClose }: Props) {
         )}
       </div>
 
-      {/* Panel inferior */}
-      <div
-        className="shrink-0 bg-black px-4 pt-3"
-        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
-      >
-        <div className="w-full h-1.5 bg-white/15 rounded-full overflow-hidden mb-2.5">
-          <div
-            className="h-full rounded-full transition-all duration-300"
-            style={{ width: `${(totalShots / totalTarget) * 100}%`, background: ACCENT }}
-          />
+      {/* Panel de controles: abajo, o a la derecha si la pantalla está en horizontal */}
+      {shortLandscape ? (
+        <div
+          className="shrink-0 w-44 bg-black px-3 py-3 flex flex-col items-center justify-center gap-3"
+          style={{ paddingRight: 'max(0.75rem, env(safe-area-inset-right))' }}
+        >
+          {progressBar}
+          <p className="label-caps text-[11px] text-white/60">{shots}/{SHOTS_PER_PASS} FOTOS</p>
+          {shutter}
+          {skipButton}
+          <p className="text-white/60 text-[11px] leading-snug text-center">{pass.hint}</p>
         </div>
-        <p className="text-white/70 text-xs leading-snug mb-3 text-center min-h-[2rem]">{pass.hint}</p>
+      ) : (
+        <div
+          className="shrink-0 bg-black px-4 pt-3"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="mb-2.5">{progressBar}</div>
+          <p className="text-white/70 text-xs leading-snug mb-3 text-center min-h-8">{pass.hint}</p>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <p className="label-caps text-[11px] text-white/60 min-w-0">
-            {shots}/{SHOTS_PER_PASS} FOTOS
-          </p>
-
-          <button
-            type="button"
-            onClick={manualCapture}
-            disabled={phase !== 'scan'}
-            aria-label="Tomar foto"
-            className="w-16 h-16 rounded-full border-4 flex items-center justify-center disabled:opacity-40"
-            style={{ borderColor: auto ? 'rgba(255,255,255,0.35)' : ACCENT }}
-          >
-            <span
-              className={`w-11 h-11 rounded-full flex items-center justify-center ${auto ? 'bg-white/20' : 'bg-white'}`}
-            >
-              {auto && <span className="material-symbols-outlined text-white text-xl animate-spin" style={{ animationDuration: '3s' }}>sync</span>}
-            </span>
-          </button>
-
-          <div className="flex justify-end min-w-0">
-            <button
-              type="button"
-              onClick={skipPass}
-              disabled={phase !== 'scan'}
-              className="px-3 py-2 border border-white/25 text-white/80 label-caps text-[11px] rounded-lg disabled:opacity-40 whitespace-nowrap"
-            >
-              {lastPass ? 'FINALIZAR' : 'SALTAR'}
-            </button>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <p className="label-caps text-[11px] text-white/60 min-w-0">
+              {shots}/{SHOTS_PER_PASS} FOTOS
+            </p>
+            {shutter}
+            <div className="flex justify-end min-w-0">{skipButton}</div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 

@@ -12,6 +12,7 @@ from db import get_reconstruction_images, mark_job_failed
 from api_client import report_progress, complete_job
 from steps.download import download_images
 from steps.colmap import run_colmap
+from steps.orientation import unify_orientation
 from steps.masks import generate_masks, masks_available
 from steps.train import (QUALITY_ANTIALIASED, QUALITY_DATA_ARGS, QUALITY_METHOD, QUALITY_MODEL_ARGS,
                          train_splatfacto)
@@ -74,6 +75,7 @@ def _run_steps(job_id: str, vehicle_id: str, work_dir: Path, start_time: float) 
         )
 
     images_dir = download_images(images, work_dir)
+    unify_orientation(images_dir)   # COLMAP usa una sola cámara: verticales y horizontales no se pueden mezclar
     _progress(job_id, "downloading_images", 100)
 
     # ── 2. COLMAP — extracción de poses ───────────────────────────────────────
