@@ -115,6 +115,19 @@ describe('AuthCallback — el rol de la tabla users manda', () => {
     expect(state.upsert).not.toHaveBeenCalled()
   })
 
+  it('si Google/Supabase devuelve un error en la URL lo muestra al instante con el motivo', async () => {
+    window.history.replaceState({}, '', '/auth/callback?error=server_error#error=server_error&error_code=unexpected_failure&error_description=Database+error+saving+new+user')
+    try {
+      const { findByText } = render(<AuthCallback />)
+      expect(await findByText(/No se pudo crear tu cuenta en nuestra base de datos/)).toBeTruthy()
+      expect(await findByText(/unexpected_failure: Database error saving new user/)).toBeTruthy()
+      expect(mockOnAuthStateChange).not.toHaveBeenCalled()
+      expect(mockNavigate).not.toHaveBeenCalled()
+    } finally {
+      window.history.replaceState({}, '', '/')
+    }
+  })
+
   it('si no se puede consultar el rol, no escribe nada y sigue al dashboard', async () => {
     state.user = makeUser('admin')
     state.lookup = { data: null, error: { message: 'network' } }

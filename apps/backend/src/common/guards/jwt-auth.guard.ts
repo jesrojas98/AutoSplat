@@ -38,19 +38,27 @@ export class JwtAuthGuard implements CanActivate {
     // frontend corre sin sesión y RLS lo rechaza) el usuario quedaba como "buyer" aunque se
     // hubiera registrado como vendedor. Se crea la fila con el rol que eligió al registrarse;
     // solo buyer/seller (el insert propio ya lo permite RLS), nunca admin.
+    //
+    // Si todavía no eligió rol (cuenta nueva de Google que está en /auth/role) NO se crea la
+    // fila: la barra de navegación llama a la API mientras se muestra esa pantalla, y crear
+    // aquí un "buyer" le ganaba a la elección (y el trigger impide cambiar el rol después).
+    // Mientras tanto se le trata como comprador sin persistir nada.
     if (!row && !rowError) {
       const metaRole = user.user_metadata?.role
-      role = metaRole === 'seller' ? 'seller' : 'buyer'
-      await this.supabase.admin.from('users').upsert(
-        {
-          id: user.id,
-          email: user.email ?? '',
-          name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Sin nombre',
-          password_hash: '',
-          role,
-        },
-        { onConflict: 'id', ignoreDuplicates: true },
-      )
+      role = 'buyer'
+      if (metaRole === 'buyer' || metaRole === 'seller') {
+        role = metaRole
+        await this.supabase.admin.from('users').upsert(
+          {
+            id: user.id,
+            email: user.email ?? '',
+            name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? 'Sin nombre',
+            password_hash: '',
+            role,
+          },
+          { onConflict: 'id', ignoreDuplicates: true },
+        )
+      }
     }
 
     req.user = {

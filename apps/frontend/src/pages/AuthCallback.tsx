@@ -4,12 +4,43 @@ import { supabase } from '@/lib/supabase'
 import { normalizeUserRole, createUserProfile, type UserRole } from '@/store/auth.store'
 import type { User } from '@supabase/supabase-js'
 
+// Google o Supabase devuelven los errores en la URL (?error=...&error_description=... o en el
+// hash). Antes se ignoraban y a los 10s salía un mensaje genérico sin pista de la causa.
+function readUrlError(): { code: string; description: string } | null {
+  const query = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const pick = (key: string) => hash.get(key) ?? query.get(key)
+  const code = pick('error_code') ?? pick('error')
+  const description = pick('error_description')
+  if (!code && !description) return null
+  return { code: code ?? 'error', description: description ?? '' }
+}
+
+function friendlyReason(err: { code: string; description: string }): string {
+  if (err.code === 'access_denied') return 'Se canceló el acceso o Google no dio permiso.'
+  if (/database error/i.test(err.description)) return 'No se pudo crear tu cuenta en nuestra base de datos.'
+  if (/exchange external code/i.test(err.description)) return 'Google no confirmó el acceso a tiempo.'
+  return 'Google o nuestro servidor de acceso devolvió un error.'
+}
+
 export function AuthCallback() {
   const navigate = useNavigate()
   const [failure, setFailure] = useState(false)
+  const [reason, setReason] = useState('')
+  const [detail, setDetail] = useState('')
 
   useEffect(() => {
     let done = false
+
+    const urlError = readUrlError()
+    if (urlError) {
+      done = true
+      setReason(friendlyReason(urlError))
+      setDetail(`${urlError.code}${urlError.description ? `: ${urlError.description}` : ''}`)
+      setFailure(true)
+      return
+    }
+    let manualError = ''
 
     async function syncAndRedirect(user: User) {
       if (done) return
@@ -73,9 +104,10 @@ export function AuthCallback() {
       if (!access_token || !refresh_token) return
       try {
         const { data, error } = await supabase.auth.setSession({ access_token, refresh_token })
-        if (!error && data.session?.user) syncAndRedirect(data.session.user)
-      } catch {
-        // el mensaje genérico del fallback cubre este caso
+        if (error) manualError = error.message
+        else if (data.session?.user) syncAndRedirect(data.session.user)
+      } catch (e) {
+        manualError = e instanceof Error ? e.message : String(e)
       }
     }, 3_000)
 
@@ -83,6 +115,8 @@ export function AuthCallback() {
     const timeout = setTimeout(() => {
       if (done) return
       done = true
+      const hasTokens = /access_token=/.test(window.location.hash) || /[?&]code=/.test(window.location.search)
+      setDetail(manualError || (hasTokens ? 'La sesión llegó pero no se pudo validar.' : 'La URL de retorno no trae sesión.'))
       setFailure(true)
     }, 10_000)
 
@@ -100,8 +134,13 @@ export function AuthCallback() {
           <span className="material-symbols-outlined text-[var(--color-error)]" style={{ fontSize: 40 }}>error</span>
           <p className="label-caps text-[var(--color-on-surface)]">NO SE PUDO INICIAR SESIÓN</p>
           <p className="text-sm text-[var(--color-on-surface-variant)]">
-            No pudimos completar el acceso con Google. Inténtalo de nuevo.
+            No pudimos completar el acceso con Google. {reason} Inténtalo de nuevo.
           </p>
+          {detail && (
+            <p className="text-xs text-[var(--color-on-surface-variant)] opacity-70 break-words">
+              Detalle: {detail}
+            </p>
+          )}
           <button
             onClick={() => navigate('/login')}
             className="bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] px-6 py-3 rounded-lg label-caps font-bold"

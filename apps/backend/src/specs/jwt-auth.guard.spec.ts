@@ -40,11 +40,25 @@ describe('JwtAuthGuard — rol', () => {
     )
   })
 
+  it('sin fila y registrado como comprador crea la fila como comprador', async () => {
+    const { guard, ctx, req, upsert } = setup({ row: null, metaRole: 'buyer' })
+    await guard.canActivate(ctx)
+    expect(req.user.role).toBe('buyer')
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ role: 'buyer' }), expect.anything())
+  })
+
   it('sin fila nunca se crea como admin aunque la metadata lo diga', async () => {
     const { guard, ctx, req, upsert } = setup({ row: null, metaRole: 'admin' })
     await guard.canActivate(ctx)
     expect(req.user.role).toBe('buyer')
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ role: 'buyer' }), expect.anything())
+    expect(upsert).not.toHaveBeenCalled()
+  })
+
+  it('sin fila y sin rol elegido (Google en /auth/role) no crea la fila: no le gana a la elección', async () => {
+    const { guard, ctx, req, upsert } = setup({ row: null })
+    await guard.canActivate(ctx)
+    expect(req.user.role).toBe('buyer')
+    expect(upsert).not.toHaveBeenCalled()
   })
 
   it('si falla la consulta del rol no escribe nada', async () => {
