@@ -118,11 +118,11 @@ export function StepPhotos({ form, onChange, onNext, onPrev }: Props) {
       </div>
 
       {/* Navegación */}
-      <div className="flex justify-between">
+      <div className="flex justify-between gap-3">
         <button
           type="button"
           onClick={onPrev}
-          className="px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all flex items-center gap-2"
+          className="shrink-0 whitespace-nowrap px-4 sm:px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all flex items-center gap-2"
         >
           <span className="material-symbols-outlined text-base">arrow_back</span>
           ANTERIOR
@@ -131,7 +131,7 @@ export function StepPhotos({ form, onChange, onNext, onPrev }: Props) {
           type="button"
           onClick={onNext}
           disabled={form.galleryImages.length < 4}
-          className="glow-primary px-10 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[var(--color-primary-container)]"
+          className="glow-primary flex-1 sm:flex-none min-w-0 whitespace-nowrap px-4 sm:px-10 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[var(--color-primary-container)]"
         >
           SIGUIENTE
           <span className="material-symbols-outlined text-base">arrow_forward</span>

@@ -25,13 +25,13 @@ export function SellerRoute({ children }: { children: React.ReactNode }) {
           Necesitas una cuenta para publicar vehículos en AutoSplat.
         </p>
       </div>
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
         <Link to="/login"
-          className="px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all">
+          className="whitespace-nowrap px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all">
           INICIAR SESIÓN
         </Link>
         <Link to="/register"
-          className="glow-primary px-8 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all">
+          className="glow-primary whitespace-nowrap px-8 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all">
           CREAR CUENTA
         </Link>
       </div>
@@ -51,13 +51,13 @@ export function SellerRoute({ children }: { children: React.ReactNode }) {
           Tu cuenta está registrada como <strong>comprador</strong>. Para publicar vehículos necesitas una cuenta de vendedor.
         </p>
       </div>
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
         <Link to="/catalog"
-          className="px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all">
+          className="whitespace-nowrap px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all">
           VER CATÁLOGO
         </Link>
         <Link to="/register"
-          className="glow-primary px-8 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all">
+          className="glow-primary whitespace-nowrap px-8 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all">
           CREAR CUENTA VENDEDOR
         </Link>
       </div>

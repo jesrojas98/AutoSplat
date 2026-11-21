@@ -451,15 +451,15 @@ export function EditVehicle() {
         </Field>
 
         {/* Acciones */}
-        <div className="flex justify-between pt-2">
+        <div className="flex justify-between gap-3 pt-2">
           <button type="button" onClick={() => navigate(-1)}
-            className="px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps text-xs rounded-lg hover:bg-[var(--color-surface-container)] transition-all">
+            className="shrink-0 whitespace-nowrap px-4 sm:px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps text-xs rounded-lg hover:bg-[var(--color-surface-container)] transition-all">
             CANCELAR
           </button>
           <button type="submit" disabled={saving || !form.brand || !form.model || !form.location}
-            className="glow-primary px-10 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps text-xs font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all disabled:opacity-50 flex items-center gap-2">
+            className="glow-primary flex-1 sm:flex-none min-w-0 whitespace-nowrap px-4 sm:px-10 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps text-xs font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {saving
-              ? <><span className="w-4 h-4 border-2 border-[var(--color-on-primary-container)]/30 border-t-[var(--color-on-primary-container)] rounded-full animate-spin" />GUARDANDO...</>
+              ? <><span className="shrink-0 w-4 h-4 border-2 border-[var(--color-on-primary-container)]/30 border-t-[var(--color-on-primary-container)] rounded-full animate-spin" />GUARDANDO...</>
               : <><span className="material-symbols-outlined text-base">save</span>GUARDAR CAMBIOS</>}
           </button>
         </div>

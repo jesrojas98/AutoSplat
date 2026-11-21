@@ -143,15 +143,15 @@ export function StepReview({ form, onPrev }: Props) {
             {covered3D >= 24 && ' El procesamiento 3D comenzará en breve.'}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           {vehicleId && (
             <button onClick={() => navigate(`/vehicles/${vehicleId}`)}
-              className="glow-primary px-8 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all">
+              className="glow-primary whitespace-nowrap px-8 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all">
               VER PUBLICACIÓN
             </button>
           )}
           <button onClick={() => navigate('/dashboard')}
-            className="px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all">
+            className="whitespace-nowrap px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all">
             IR A MI CUENTA
           </button>
         </div>
@@ -239,16 +239,16 @@ export function StepReview({ form, onPrev }: Props) {
         </div>
       )}
 
-      <div className="flex justify-between">
+      <div className="flex justify-between gap-3">
         <button type="button" onClick={onPrev} disabled={publishing}
-          className="px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all flex items-center gap-2 disabled:opacity-40">
+          className="shrink-0 whitespace-nowrap px-4 sm:px-8 py-3 border border-[var(--color-outline-variant)]/50 text-[var(--color-on-surface)] label-caps rounded-lg hover:bg-[var(--color-surface-container)] transition-all flex items-center gap-2 disabled:opacity-40">
           <span className="material-symbols-outlined text-base">arrow_back</span>
           ANTERIOR
         </button>
         <button type="button" onClick={handlePublish} disabled={publishing}
-          className="glow-primary px-10 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all flex items-center gap-2 disabled:opacity-70">
+          className="glow-primary flex-1 sm:flex-none min-w-0 whitespace-nowrap px-4 sm:px-10 py-3 bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] label-caps font-bold rounded-lg hover:bg-[var(--color-primary)] transition-all flex items-center justify-center gap-2 disabled:opacity-70">
           {publishing ? (
-            <><span className="w-4 h-4 border-2 border-[var(--color-on-primary-container)]/30 border-t-[var(--color-on-primary-container)] rounded-full animate-spin" />PUBLICANDO...</>
+            <><span className="shrink-0 w-4 h-4 border-2 border-[var(--color-on-primary-container)]/30 border-t-[var(--color-on-primary-container)] rounded-full animate-spin" />PUBLICANDO...</>
           ) : (
             <><span className="material-symbols-outlined text-base">rocket_launch</span>PUBLICAR AHORA</>
           )}
