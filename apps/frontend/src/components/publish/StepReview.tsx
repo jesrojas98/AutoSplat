@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { VehicleForm } from '@/pages/PublishVehicle'
 import { formatPriceNumber } from '@/utils/formatters'
 import { api } from '@/lib/api'
+import { GALLERY_IMAGE, RECONSTRUCTION_IMAGE, prepareImage } from '@/utils/prepareImage'
 
 interface Props {
   form: VehicleForm
@@ -13,6 +14,7 @@ const FUEL_LABEL: Record<string, string> = { gasoline: 'Bencina', diesel: 'Diés
 const TRANSMISSION_LABEL: Record<string, string> = { manual: 'Manual', automatic: 'Automático', cvt: 'CVT' }
 
 const RECON_BATCH_SIZE = 10
+const GALLERY_BATCH_SIZE = 5
 
 const STEPS_PUBLISH = [
   'Creando publicación...',
@@ -48,7 +50,7 @@ export function StepReview({ form, onPrev }: Props) {
   const [error, setError] = useState('')
   const publishStepRef = useRef(0)
   // En un reintento se retoma desde lo que ya se subió (galería lista, fotos 3D ya enviadas)
-  const uploaded = useRef({ gallery: false, reconstructionFiles: 0 })
+  const uploaded = useRef({ galleryFiles: 0, reconstructionFiles: 0 })
   const [reconProgress, setReconProgress] = useState('')
   const covered3D = form.reconstructionImages.filter((a) => a.file !== null).length + form.freeImages.length
 
@@ -84,15 +86,23 @@ export function StepReview({ form, onPrev }: Props) {
         setVehicleId(id)
       }
 
-      // 2. Subir fotos de galería
-      if (form.galleryImages.length > 0 && !uploaded.current.gallery) {
+      // 2. Subir fotos de galería: achicadas en el teléfono y por tandas (todas juntas a tamaño completo
+      // superaban la memoria del servidor o su límite de 10 MB por foto, y la subida se cortaba).
+      const gallery = form.galleryImages
+      if (gallery.length > 0 && uploaded.current.galleryFiles < gallery.length) {
         goTo(1)
-        const fd = new FormData()
-        form.galleryImages.forEach((f) => fd.append('images', f))
-        await api.post(`/upload/vehicles/${id}/images`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
-        uploaded.current.gallery = true
+        while (uploaded.current.galleryFiles < gallery.length) {
+          const from = uploaded.current.galleryFiles
+          const batch = gallery.slice(from, from + GALLERY_BATCH_SIZE)
+          setReconProgress(`${from} / ${gallery.length}`)
+          const fd = new FormData()
+          for (const f of batch) fd.append('images', await prepareImage(f, GALLERY_IMAGE))
+          await api.post(`/upload/vehicles/${id}/images`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          })
+          uploaded.current.galleryFiles = from + batch.length
+        }
+        setReconProgress('')
       }
 
       // 3. Subir fotos de reconstrucción 3D (guiadas + libres)
@@ -108,7 +118,7 @@ export function StepReview({ form, onPrev }: Props) {
           const isLast = from + batch.length >= allReconFiles.length
           setReconProgress(`${from} / ${allReconFiles.length}`)
           const fd = new FormData()
-          batch.forEach((f) => fd.append('images', f))
+          for (const f of batch) fd.append('images', await prepareImage(f, RECONSTRUCTION_IMAGE))
           await api.post(`/upload/vehicles/${id}/reconstruction`, fd, {
             headers: { 'Content-Type': 'multipart/form-data' },
             params: { finalize: isLast },

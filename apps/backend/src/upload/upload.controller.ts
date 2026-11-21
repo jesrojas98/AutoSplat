@@ -12,7 +12,14 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../common/decorators/current-user.decorator'
 
 const IMAGE_LIMITS = { fileSize: 10 * 1024 * 1024 } // 10 MB
-const ALLOWED_TYPES = /^image\/(jpeg|jpg|png|webp)$/
+const ALLOWED_TYPES = /^image\/(jpeg|jpg|png|webp|heic|heif)$/
+// Algunos navegadores (Chrome en Android) mandan las HEIC del iPhone sin tipo: se reconocen por la extensión
+const HEIC_NAME = /\.(heic|heif)$/i
+
+function isAllowedImage(f: Express.Multer.File): boolean {
+  if (ALLOWED_TYPES.test(f.mimetype)) return true
+  return (!f.mimetype || f.mimetype === 'application/octet-stream') && HEIC_NAME.test(f.originalname ?? '')
+}
 // El frontend permite hasta 200 fotos libres + 21 ángulos guiados para el 3D
 const MAX_RECONSTRUCTION_IMAGES = 250
 
@@ -39,8 +46,16 @@ export class UploadController {
     if (!files?.length) throw new BadRequestException('No se recibieron imágenes')
 
     files.forEach((f) => {
-      if (!ALLOWED_TYPES.test(f.mimetype)) throw new BadRequestException(`Tipo no permitido: ${f.mimetype}`)
+      if (!isAllowedImage(f)) throw new BadRequestException(`Tipo no permitido: ${f.mimetype || f.originalname}`)
     })
+
+    // El frontend sube la galería por tandas: cada tanda continúa el orden de las anteriores
+    const { count: alreadyUploaded } = await this.supabase.admin
+      .from('vehicle_images')
+      .select('id', { count: 'exact', head: true })
+      .eq('vehicle_id', vehicleId)
+      .in('image_type', ['thumbnail', 'gallery'])
+    const offset = alreadyUploaded ?? 0
 
     const uploaded = await this.upload.uploadMany(files, `vehicles/${vehicleId}`)
 
@@ -49,8 +64,8 @@ export class UploadController {
       image_url: img.url,
       thumbnail_url: img.thumbnail_url,
       cloudinary_public_id: img.public_id,
-      image_type: i === 0 ? 'thumbnail' : 'gallery',
-      sort_order: i,
+      image_type: offset + i === 0 ? 'thumbnail' : 'gallery',
+      sort_order: offset + i,
       width: img.width,
       height: img.height,
       file_size_kb: Math.round(img.bytes / 1024),
@@ -79,7 +94,7 @@ export class UploadController {
     if (!files?.length) throw new BadRequestException('No se recibieron imágenes')
 
     files.forEach((f) => {
-      if (!ALLOWED_TYPES.test(f.mimetype)) throw new BadRequestException(`Tipo no permitido: ${f.mimetype}`)
+      if (!isAllowedImage(f)) throw new BadRequestException(`Tipo no permitido: ${f.mimetype || f.originalname}`)
     })
 
     // Las tandas siguientes continúan el orden de las anteriores

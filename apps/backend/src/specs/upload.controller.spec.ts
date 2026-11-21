@@ -1,8 +1,8 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
 import { UploadController } from '../upload/upload.controller'
 
-function file(mimetype = 'image/jpeg') {
-  return { mimetype, buffer: Buffer.from('x') } as Express.Multer.File
+function file(mimetype = 'image/jpeg', originalname = 'foto.jpg') {
+  return { mimetype, originalname, buffer: Buffer.from('x') } as Express.Multer.File
 }
 
 describe('UploadController — permisos sobre el vehículo', () => {
@@ -32,7 +32,12 @@ describe('UploadController — permisos sobre el vehículo', () => {
             ? { select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: vehicleRow }) }) }) }
             : {
                 insert: (rows: any[]) => { insertedRows.push(...rows); return insertChain },
-                select: () => ({ eq: () => ({ eq: () => Promise.resolve({ count: existingImages }) }) }),
+                select: () => ({
+                  eq: () => ({
+                    eq: () => Promise.resolve({ count: existingImages }),
+                    in: () => Promise.resolve({ count: existingImages }),
+                  }),
+                }),
               },
         ),
       },
@@ -77,9 +82,33 @@ describe('UploadController — permisos sobre el vehículo', () => {
 
   it('rechaza tipos de archivo no permitidos en reconstrucción', async () => {
     await expect(
-      controller.uploadReconstructionImages(VEHICLE_ID, { id: 'owner', role: 'seller' }, [file('image/heic')]),
+      controller.uploadReconstructionImages(VEHICLE_ID, { id: 'owner', role: 'seller' }, [file('application/pdf', 'doc.pdf')]),
     ).rejects.toThrow('Tipo no permitido')
     expect(jobs.create).not.toHaveBeenCalled()
+  })
+
+  it('acepta las HEIC del iPhone, también cuando el navegador no manda el tipo', async () => {
+    const owner = { id: 'owner', role: 'seller' }
+    await controller.uploadVehicleImages(VEHICLE_ID, owner, [file('image/heic', 'IMG_1.HEIC'), file('', 'IMG_2.heic')])
+    expect(insertedRows).toHaveLength(2)
+    await expect(
+      controller.uploadVehicleImages(VEHICLE_ID, owner, [file('', 'algo.exe')]),
+    ).rejects.toThrow('Tipo no permitido')
+  })
+
+  describe('galería por tandas', () => {
+    const owner = { id: 'owner', role: 'seller' }
+
+    it('la primera tanda define la portada', async () => {
+      await controller.uploadVehicleImages(VEHICLE_ID, owner, [file(), file()])
+      expect(insertedRows.map((r) => [r.image_type, r.sort_order])).toEqual([['thumbnail', 0], ['gallery', 1]])
+    })
+
+    it('las tandas siguientes continúan el orden y no crean otra portada', async () => {
+      existingImages = 5
+      await controller.uploadVehicleImages(VEHICLE_ID, owner, [file(), file()])
+      expect(insertedRows.map((r) => [r.image_type, r.sort_order])).toEqual([['gallery', 5], ['gallery', 6]])
+    })
   })
 
   describe('subida por tandas (finalize)', () => {

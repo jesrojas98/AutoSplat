@@ -6,6 +6,10 @@ import { SupabaseService } from '../supabase/supabase.service'
 
 const UPLOAD_CONCURRENCY = 8
 
+function isHeic(file: Express.Multer.File): boolean {
+  return /heic|heif/i.test(file.mimetype ?? '') || /\.(heic|heif)$/i.test(file.originalname ?? '')
+}
+
 @Injectable()
 export class UploadService implements OnModuleInit {
   private readonly logger = new Logger(UploadService.name)
@@ -31,6 +35,9 @@ export class UploadService implements OnModuleInit {
       // quality:auto recomprime el original al guardarlo (una foto 1080×1920 de ~600 KB quedaba en ~150 KB).
       // Para la galería da igual, pero a la reconstrucción 3D le quita el detalle fino: esas se guardan intactas.
       ...(options.keepOriginal ? {} : { transformation: [{ quality: 'auto', fetch_format: 'auto' }] }),
+      // Las HEIC del iPhone se guardan como JPG: la mayoría de los navegadores no las muestran y el worker 3D
+      // (COLMAP) no las lee
+      ...(isHeic(file) ? { format: 'jpg' } : {}),
     })
 
     const thumbnail_url = cloudinary.url(result.public_id, {
